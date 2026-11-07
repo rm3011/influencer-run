@@ -10,29 +10,42 @@ export function createPlayer(scene) {
     let mixer = null;
     const actions = {};
 
-    new GLTFLoader().load('./models/Soldier.glb', (gltf) => {
-        const model = gltf.scene;
-        player.add(model);
+    new GLTFLoader().load(
+        './assets/models/Soldier.glb',
+        (gltf) => {
+            const model = gltf.scene;
+            player.add(model);
 
-        const box = new THREE.Box3().setFromObject(model);
-        const size = new THREE.Vector3();
-        box.getSize(size);
+            const box = new THREE.Box3().setFromObject(model);
+            const size = new THREE.Vector3();
+            box.getSize(size);
 
-        model.scale.setScalar(CONFIG.player.height / size.y);
+            model.scale.setScalar(CONFIG.player.height / size.y);
 
-        const box2 = new THREE.Box3().setFromObject(model);
-        const center = new THREE.Vector3();
-        box2.getCenter(center);
-        model.position.x -= center.x;
-        model.position.z -= center.z;
-        model.position.y -= box2.min.y;
+            const box2 = new THREE.Box3().setFromObject(model);
+            const center = new THREE.Vector3();
+            box2.getCenter(center);
+            model.position.x -= center.x;
+            model.position.z -= center.z;
+            model.position.y -= box2.min.y;
 
-        mixer = new THREE.AnimationMixer(model);
-        const anims = gltf.animations;
-        actions.idle = mixer.clipAction(anims.find(a => a.name === 'Idle') || anims[0]);
-        actions.run  = mixer.clipAction(anims.find(a => a.name === 'Run')  || anims[1] || anims[0]);
-        actions.run.play();
-    });
+            mixer = new THREE.AnimationMixer(model);
+            const anims = gltf.animations;
+            actions.idle = mixer.clipAction(anims.find(a => a.name === 'Idle') || anims[0]);
+            actions.run  = mixer.clipAction(anims.find(a => a.name === 'Run')  || anims[1] || anims[0]);
+            actions.run.play();
+        },
+        undefined,
+        (err) => {
+            console.warn('[player] Model failed to load — using fallback box.', err);
+            const fallback = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, CONFIG.player.height, 0.4),
+                new THREE.MeshBasicMaterial({ color: 0xff8800 })
+            );
+            fallback.position.y = CONFIG.player.height / 2;
+            player.add(fallback);
+        }
+    );
 
     const state = {
         currentLane: 1,

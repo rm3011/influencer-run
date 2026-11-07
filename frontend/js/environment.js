@@ -11,9 +11,15 @@ export function createEnvironment() {
     camera.position.set(...CONFIG.camera.position);
     camera.lookAt(...CONFIG.camera.lookAt);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: false });
+    const renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        powerPreference: 'high-performance',
+        stencil: false,
+        depth: true
+    });
     renderer.setSize(innerWidth, innerHeight);
     renderer.setPixelRatio(1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     document.body.appendChild(renderer.domElement);
 
     const ground = new THREE.Mesh(
@@ -24,10 +30,17 @@ export function createEnvironment() {
     ground.position.z = -90;
     scene.add(ground);
 
+    // Resize handler — debounced via rAF to avoid thrashing on window drag
+    let resizePending = false;
     addEventListener('resize', () => {
-        camera.aspect = innerWidth / innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(innerWidth, innerHeight);
+        if (resizePending) return;
+        resizePending = true;
+        requestAnimationFrame(() => {
+            resizePending = false;
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(innerWidth, innerHeight);
+        });
     });
 
     return { scene, camera, renderer };

@@ -1,16 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Influencer Run</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        #hud {
-            position: fixed; top: 10px; left: 10px;
-            color: white; font-family: monospace; font-size: 16px;
-            z-index: 10; pointer-events: none;
-        }
-    </style>
+    <link rel="stylesheet" href="./css/style.css">
     <script type="importmap">
     {
         "imports": {
@@ -22,6 +16,11 @@
 </head>
 <body>
     <div id="hud">Score: 0</div>
-    <script type="module" src="./main.js"></script>
+
+    <button id="cv-btn">Start Camera</button>
+
+    <canvas id="cv-debug" width="160" height="120"></canvas>
+
+    <script type="module" src="./js/main.js"></script>
 </body>
 </html>
