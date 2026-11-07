@@ -53,3 +53,314 @@ canvas {
     display: none;
     background: #000;
 }
+
+/* ===================================================== */
+/* ============ UI ADDITIONS (menu / overlays) ========= */
+/* ===================================================== */
+
+.hidden { display: none !important; }
+
+/* ---- Updated HUD (overrides old text-only HUD) ---- */
+#hud {
+    /* override previous plain-text styles with structured block */
+    top: 20px;
+    left: 20px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+#score-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 2px;
+}
+#score-value {
+    font-size: 42px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+    font-family: monospace;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.7);
+    transition: transform 0.15s ease-out;
+}
+#score-value.bump { transform: scale(1.25); }
+#best-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 8px;
+    letter-spacing: 1px;
+    font-family: monospace;
+}
+#best-value { color: #ffd700; font-weight: bold; }
+
+/* ---- CV status pill (overrides #cv-btn visual style) ---- */
+#cv-btn.cv-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s;
+}
+#cv-btn.cv-status:hover:not(:disabled) {
+    background: rgba(0,0,0,0.8);
+    border-color: rgba(255,255,255,0.3);
+}
+#cv-btn.cv-status:disabled { cursor: wait; opacity: 0.7; background: rgba(0,0,0,0.6); }
+
+.cv-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #666;
+    box-shadow: 0 0 8px rgba(102,102,102,0.6);
+}
+#cv-btn.cv-status.off         .cv-dot { background: #666;    box-shadow: 0 0 8px rgba(102,102,102,0.6); }
+#cv-btn.cv-status.loading     .cv-dot { background: #f0b000; box-shadow: 0 0 8px #f0b000; animation: cvPulse 1s   infinite; }
+#cv-btn.cv-status.calibrating .cv-dot { background: #f0b000; box-shadow: 0 0 8px #f0b000; animation: cvPulse 0.6s infinite; }
+#cv-btn.cv-status.ready       .cv-dot { background: #00e060; box-shadow: 0 0 10px #00e060; }
+#cv-btn.cv-status.error       .cv-dot { background: #e03030; box-shadow: 0 0 8px #e03030; }
+
+@keyframes cvPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+
+/* ---- Overlays ---- */
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.82);
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.25s ease-out;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #fff;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.overlay-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    text-align: center;
+    max-width: 500px;
+    padding: 0 24px;
+}
+
+.modal-inner {
+    background: rgba(20,20,30,0.9);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 40px;
+    max-width: 700px;
+}
+
+/* ---- Title ---- */
+.game-title {
+    font-size: clamp(38px, 8vw, 72px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    line-height: 1;
+    background: linear-gradient(135deg, #ffd700 0%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 30px rgba(255,215,0,0.3);
+    margin-bottom: 8px;
+}
+.game-subtitle {
+    font-size: 14px;
+    letter-spacing: 6px;
+    color: rgba(255,255,255,0.55);
+    text-transform: uppercase;
+    margin-bottom: 30px;
+}
+.game-over-title {
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 900;
+    color: #ff5050;
+    letter-spacing: 3px;
+    text-shadow: 0 0 30px rgba(255,80,80,0.4);
+}
+
+/* ---- Buttons ---- */
+.btn-primary, .btn-secondary {
+    font-family: inherit;
+    font-weight: 800;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease-out;
+    text-transform: uppercase;
+}
+.btn-primary {
+    padding: 18px 64px;
+    font-size: 22px;
+    color: #000;
+    background: linear-gradient(135deg, #ffd700, #ffb700);
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(255,215,0,0.35);
+}
+.btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,215,0,0.55); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+    padding: 12px 28px;
+    font-size: 14px;
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+}
+.btn-secondary:hover {
+    background: rgba(255,255,255,0.16);
+    border-color: rgba(255,255,255,0.4);
+}
+
+.btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.hint {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 20px;
+    max-width: 340px;
+    line-height: 1.5;
+}
+
+/* ---- Countdown ---- */
+#countdown {
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: none;
+}
+#countdown-text {
+    font-size: clamp(120px, 25vw, 260px);
+    font-weight: 900;
+    color: #ffd700;
+    text-shadow: 0 0 60px rgba(255,215,0,0.8), 0 8px 40px rgba(0,0,0,0.9);
+    animation: countPulse 0.5s ease-out;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+@keyframes countPulse {
+    0%   { transform: scale(2); opacity: 0; }
+    50%  { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ---- Game over ---- */
+.final-score {
+    font-size: 28px;
+    font-family: monospace;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 2px;
+    margin: 20px 0;
+}
+.final-score span { color: #ffd700; font-size: 42px; margin-left: 8px; }
+
+.new-high {
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #ffd700;
+    animation: glow 1.2s ease-in-out infinite alternate;
+    margin-bottom: 8px;
+}
+@keyframes glow {
+    from { text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+    to   { text-shadow: 0 0 24px rgba(255,215,0,1), 0 0 40px rgba(255,215,0,0.8); }
+}
+
+/* ---- Character modal ---- */
+#char-modal h2 {
+    font-size: 28px;
+    letter-spacing: 4px;
+    color: #ffd700;
+    margin-bottom: 20px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.char-grid {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.char-card {
+    width: 160px;
+    padding: 16px;
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.char-card:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,215,0,0.4);
+}
+.char-card.selected {
+    border-color: #ffd700;
+    background: rgba(255,215,0,0.12);
+    box-shadow: 0 0 24px rgba(255,215,0,0.3);
+}
+
+.char-preview {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #444, #222);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 900;
+    color: #ffd700;
+}
+
+.char-name {
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.char-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #ffd700;
+    color: #000;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+    .btn-primary { padding: 14px 40px; font-size: 18px; }
+    .btn-secondary { padding: 10px 20px; font-size: 12px; }
+    #score-value { font-size: 32px; }
+}

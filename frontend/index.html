@@ -15,11 +15,63 @@
     </script>
 </head>
 <body>
-    <div id="hud">Score: 0</div>
+    <!-- Score HUD (hidden until game starts) -->
+    <div id="hud" class="hidden">
+        <div id="score-label">SCORE</div>
+        <div id="score-value">0</div>
+        <div id="best-label">BEST <span id="best-value">0</span></div>
+    </div>
 
-    <button id="cv-btn">Start Camera</button>
+    <!-- CV status pill (top-right) -->
+    <button id="cv-btn" class="cv-status off">
+        <span class="cv-dot"></span>
+        <span class="cv-text">Enable Camera</span>
+    </button>
 
+    <!-- Debug canvas (bottom-right, hidden until CV ready) -->
     <canvas id="cv-debug" width="160" height="120"></canvas>
+
+    <!-- === START SCREEN === -->
+    <div id="start-screen" class="overlay">
+        <div class="overlay-inner">
+            <h1 class="game-title">INFLUENCER RUN</h1>
+            <p class="game-subtitle">Tamil fitness creators!</p>
+
+            <button id="play-btn" class="btn-primary">PLAY</button>
+
+            <div class="btn-row">
+                <button id="stats-btn" class="btn-secondary">STATS</button>
+                <button id="char-btn" class="btn-secondary">CHARACTERS</button>
+            </div>
+
+            <p class="hint">Enable camera for motion control, or use arrow keys</p>
+        </div>
+    </div>
+
+    <!-- === CHARACTER SELECT MODAL === -->
+    <div id="char-modal" class="overlay hidden">
+        <div class="overlay-inner modal-inner">
+            <h2>SELECT CHARACTER</h2>
+            <div id="char-grid" class="char-grid"></div>
+            <button id="char-close-btn" class="btn-secondary">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- === COUNTDOWN === -->
+    <div id="countdown" class="overlay hidden">
+        <div id="countdown-text">3</div>
+    </div>
+
+    <!-- === GAME OVER === -->
+    <div id="game-over" class="overlay hidden">
+        <div class="overlay-inner">
+            <h1 class="game-over-title">GAME OVER</h1>
+            <div class="final-score">SCORE <span id="final-score-value">0</span></div>
+            <div id="new-high" class="new-high hidden">NEW HIGH SCORE!</div>
+            <button id="restart-btn" class="btn-primary">PLAY AGAIN</button>
+            <button id="menu-btn" class="btn-secondary">MAIN MENU</button>
+        </div>
+    </div>
 
     <script type="module" src="./js/main.js"></script>
 </body>

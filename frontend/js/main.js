@@ -7,15 +7,20 @@ import { createCoinPool, spawnCoin, updateCollectibles,
          checkCoinCollision, getCoinPoints } from './collectibles.js';
 import { Input, attachKeyboard } from './input.js';
 import { startCV } from './cv-controller.js';
+import {
+    initUI, showStart, showCountdown, showGameOver, hideAllOverlays,
+    setScore, setBest, getBest, setCVStatus
+} from './menu.js';
 
 const { scene, camera, renderer, updateWorld } = createEnvironment();
 const player = createPlayer(scene);
 const obstacles = createObstaclePool(scene);
 const coins = createCoinPool(scene);
 
-const hud = document.getElementById('hud');
 const cvBtn = document.getElementById('cv-btn');
 const cvDebug = document.getElementById('cv-debug');
+
+initUI();
 
 const game = {
     score: 0,
@@ -23,14 +28,16 @@ const game = {
     spawnTimer: 0,
     coinTimer: 1.5,
     elapsed: 0,
-    gameOver: false
+    gameOver: false,
+    state: 'menu'        // ADDED: menu | countdown | playing | gameover
 };
 
 attachKeyboard();
 Input.clear();
 
+// Restart on Space after game over — now goes through beginGame(), not location.reload()
 addEventListener('keydown', (e) => {
-    if (game.gameOver && e.key === ' ') location.reload();
+    if (game.gameOver && e.key === ' ') beginGame();
 });
 
 let cvHandle = null;
@@ -42,20 +49,20 @@ cvBtn.addEventListener('click', async () => {
         cvActive = false;
         cvHandle = null;
         cvDebug.style.display = 'none';
-        cvBtn.textContent = 'Start Camera';
+        setCVStatus('off');       // CHANGED: pill label instead of cvBtn.textContent
         return;
     }
 
     cvBtn.disabled = true;
-    cvBtn.textContent = 'Starting camera...';
+    setCVStatus('loading');       // CHANGED
     try {
         cvHandle = await startCV(
             (action) => Input.push(action),
             (status) => {
                 if (status === 'calibrating') {
-                    cvBtn.textContent = 'Stand still...';
+                    setCVStatus('calibrating');   // CHANGED
                 } else if (status === 'ready') {
-                    cvBtn.textContent = 'Stop Camera';
+                    setCVStatus('ready');          // CHANGED
                     cvBtn.disabled = false;
                 }
             }
@@ -64,7 +71,7 @@ cvBtn.addEventListener('click', async () => {
         cvDebug.style.display = 'block';
     } catch (err) {
         console.error('CV failed:', err);
-        cvBtn.textContent = 'Camera failed — retry';
+        setCVStatus('error');     // CHANGED
         cvBtn.disabled = false;
     }
 });
@@ -82,7 +89,58 @@ function laneIsFree(lane, z, window = 3) {
     return true;
 }
 
+// === ADDED: game lifecycle ===
+function beginGame() {
+    game.score = 0;
+    game.speed = CONFIG.game.baseSpeed;
+    game.spawnTimer = 0;
+    game.coinTimer = 1.5;
+    game.elapsed = 0;
+    game.gameOver = false;
+    game.state = 'countdown';
+
+    // Reset player
+    player.group.position.set(0, CONFIG.player.baseY, 0);
+    player.group.scale.y = 1;
+    player.state.currentLane = 1;
+    player.state.velocityY = 0;
+    player.state.isGrounded = true;
+    player.state.isRolling = false;
+    player.state.rollTimer = 0;
+
+    // Recycle all obstacles + coins
+    for (const o of obstacles) {
+        o.active = false;
+        o.group.visible = false;
+        o.group.position.z = -999;
+    }
+    for (const c of coins) {
+        c.active = false;
+        c.mesh.visible = false;
+        c.mesh.position.z = -999;
+    }
+
+    Input.clear();
+    setScore(0, false);
+
+    hideAllOverlays();
+    showCountdown(3, () => {
+        game.state = 'playing';
+    });
+}
+
+// === ADDED: game-over handler ===
+function triggerGameOver() {
+    game.gameOver = true;
+    game.state = 'gameover';
+    const best = getBest();
+    const isNewHigh = game.score > best;
+    if (isNewHigh) setBest(game.score);
+    showGameOver(game.score, isNewHigh);
+}
+
 let lastTime = performance.now();
+let lastHudScore = -1;
 
 function animate() {
     requestAnimationFrame(animate);
@@ -90,7 +148,9 @@ function animate() {
     const delta = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
 
-    if (!game.gameOver) {
+    // CHANGED: was `if (!game.gameOver)`. Same behavior during play,
+    // but also freezes during menu/countdown/gameover.
+    if (game.state === 'playing') {
         game.elapsed += delta;
 
         for (const action of Input.drain()) {
@@ -115,7 +175,7 @@ function animate() {
         game.coinTimer -= delta;
         if (game.coinTimer <= 0) {
             const lane = Math.floor(Math.random() * 3);
-            const spawnZ = CONFIG.game.spawnZ + 5;  // slightly behind obstacles
+            const spawnZ = CONFIG.game.spawnZ + 5;
             if (laneIsFree(lane, spawnZ)) {
                 spawnCoin(coins, lane, spawnZ);
             }
@@ -126,8 +186,8 @@ function animate() {
         // Collisions
         const hit = checkCollision(obstacles, player.getBounds());
         if (hit) {
-            game.gameOver = true;
-            hud.textContent = `Score: ${game.score}  |  GAME OVER (press Space)`;
+            // CHANGED: was hud.textContent = 'GAME OVER...'
+            triggerGameOver();
         }
 
         const coinHits = checkCoinCollision(coins, player.getBounds());
@@ -144,13 +204,21 @@ function animate() {
             );
         }
 
-        if (!game.gameOver) {
-            hud.textContent = `Score: ${game.score}`;
+        // CHANGED: was hud.textContent = `Score: ${game.score}` — now styled HUD
+        if (!game.gameOver && game.score !== lastHudScore) {
+            setScore(game.score, true);
+            lastHudScore = game.score;
         }
+    } else if (game.state === 'menu' || game.state === 'gameover') {
+        // Let the player animation run for a subtle idle effect
+        player.update(delta);
     }
+    // 'countdown' state: world frozen, nothing updates — matches "no gameplay"
 
     if (cvActive && cvHandle) cvHandle.drawDebugFrame();
     renderer.render(scene, camera);
 }
 
+// === ADDED: boot with start screen ===
+showStart(beginGame);
 animate();
