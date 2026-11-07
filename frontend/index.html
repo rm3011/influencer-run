@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Influencer Run</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#1a0b2e">
+    <title>Influencer Run - Chennai Marina Edition</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ff7a3d'/%3E%3Cpath d='M18 42h7l5-12 5 7 6-16 5 3-8 22-7-7-3 8H18z' fill='white'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@500;700;800&family=Noto+Sans+Tamil:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./css/style.css">
     <script type="importmap">
     {
@@ -13,44 +18,49 @@
         }
     }
     </script>
-    <!-- GSAP via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 </head>
 <body>
-    <!-- Score HUD (hidden until game starts) -->
+    <div id="flash"></div>
+
+    <!-- HUD -->
     <div id="hud" class="hidden">
-        <div id="score-label">SCORE</div>
-        <div id="score-value">0</div>
-        <div id="best-label">BEST <span id="best-value">0</span></div>
+        <div id="control-status" role="status" aria-live="polite">Keyboard controls</div>
+        <div class="hud-card">
+            <div id="score-label">SCORE</div>
+            <div id="score-value">0</div>
+            <div id="best-label">BEST <span id="best-value">0</span></div>
+        </div>
+        <div class="hud-chips">
+            <div class="chip"><i class="coin-ico"></i><span id="coins-value">0</span></div>
+            <div class="chip">🏃 <span id="dist-value">0</span> m</div>
+            <div class="chip">🔥 <span id="kcal-value">0</span> kcal</div>
+        </div>
     </div>
 
-    <!-- CV status pill (top-right) -->
-    <button id="cv-btn" class="cv-status off">
-        <span class="cv-dot"></span>
-        <span class="cv-text">Enable Camera</span>
-    </button>
-
-    <!-- Debug canvas (bottom-right, hidden until CV ready) -->
-    <canvas id="cv-debug" width="160" height="120"></canvas>
-
-    <!-- === START SCREEN === -->
-    <div id="start-screen" class="overlay">
-        <div class="overlay-inner glass-panel">
-            <h1 class="game-title">INFLUENCER RUN</h1>
-            <p class="game-subtitle">Chennai Twilight Edition</p>
-
-            <button id="play-btn" class="btn-primary">PLAY</button>
-
+    <!-- START -->
+    <div id="start-screen" class="overlay overlay-side">
+        <div class="menu-panel glass-panel">
+            <div class="tag">FITNESS RUNNER</div>
+            <h1 class="game-title"><span class="title-line">INFLUENCER</span><span class="title-line accent">RUN</span></h1>
+            <p class="game-subtitle">Chennai Marina Edition</p>
+            <p class="tamil">சென்னை ஓட்டம்</p>
+            <div class="mode-choices">
+                <button id="keyboard-btn" class="btn-primary mode-button">KEYBOARD CONTROLLER</button>
+                <button id="jogger-btn" class="btn-primary mode-button mode-jogger">REAL-TIME JOGGER</button>
+            </div>
+            <p id="mode-status" class="mode-status" role="status" aria-live="polite">
+                Choose how you want to play.
+            </p>
             <div class="btn-row">
                 <button id="stats-btn" class="btn-secondary">STATS</button>
                 <button id="char-btn" class="btn-secondary">CHARACTERS</button>
             </div>
-
-            <p class="hint">Enable camera for motion control, or use arrow keys</p>
+            <p class="hint">Keyboard: arrows or WASD. Jogger: lean left or right, raise your head to jump, lower it to roll.</p>
         </div>
     </div>
 
-    <!-- === CHARACTER SELECT MODAL === -->
+    <!-- CHARACTERS -->
     <div id="char-modal" class="overlay hidden">
         <div class="overlay-inner modal-inner glass-panel">
             <h2>SELECT CHARACTER</h2>
@@ -59,17 +69,35 @@
         </div>
     </div>
 
-    <!-- === COUNTDOWN === -->
-    <div id="countdown" class="overlay hidden">
-        <div id="countdown-text">3</div>
+    <!-- STATS -->
+    <div id="stats-modal" class="overlay hidden">
+        <div class="overlay-inner modal-inner glass-panel">
+            <h2>YOUR STATS</h2>
+            <div class="stat-grid">
+                <div class="stat-box"><span id="st-best">0</span><label>BEST SCORE</label></div>
+                <div class="stat-box"><span id="st-runs">0</span><label>RUNS</label></div>
+                <div class="stat-box"><span id="st-coins">0</span><label>COINS</label></div>
+                <div class="stat-box"><span id="st-dist">0 m</span><label>DISTANCE</label></div>
+                <div class="stat-box"><span id="st-kcal">0</span><label>KCAL BURNED</label></div>
+            </div>
+            <button id="stats-close-btn" class="btn-secondary">CLOSE</button>
+        </div>
     </div>
 
-    <!-- === GAME OVER === -->
+    <!-- COUNTDOWN -->
+    <div id="countdown" class="overlay hidden"><div id="countdown-text">3</div></div>
+
+    <!-- GAME OVER -->
     <div id="game-over" class="overlay hidden">
         <div class="overlay-inner glass-panel">
-            <h1 class="game-over-title">GAME OVER</h1>
+            <h1 class="game-over-title">WIPEOUT!</h1>
             <div class="final-score">SCORE <span id="final-score-value">0</span></div>
             <div id="new-high" class="new-high hidden">NEW HIGH SCORE!</div>
+            <div class="go-stats">
+                <div><b id="go-coins">0</b><label>COINS</label></div>
+                <div><b id="go-dist">0 m</b><label>DISTANCE</label></div>
+                <div><b id="go-kcal">0</b><label>KCAL</label></div>
+            </div>
             <button id="restart-btn" class="btn-primary">PLAY AGAIN</button>
             <button id="menu-btn" class="btn-secondary">MAIN MENU</button>
         </div>

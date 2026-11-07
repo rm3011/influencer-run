@@ -1,30 +1,34 @@
 export const CONFIG = {
     player: {
         height: 0.4,
-        renderHeight: 1.7,
+        renderHeight: 0.4,
         realHeightMeters: 1.75,
         baseY: 0.25,
         jumpVelocity: 8,
         gravity: 30,
         rollDuration: 0.5,
         rollScale: 0.4,
-        laneX: [-2, 0, 2], // Original centered lanes
-        laneLerp: 0.25,
-        width: 0.8
+        rollHeight: 0.28,
+        laneX: [-2, 0, 2],
+        laneLerp: 18,
+        modelYaw: 0,
+        width: 0.8,
+        depth: 0.7
     },
-    camera: { 
-        position: [0, 3.5, 6], // Original centered camera
-        lookAt: [0, 0.5, 0]
+    camera: {
+        menu: { pos: [0, 2.5, 8], look: [0, 1, 0] },
+        game: { pos: [0, 4.2, 8], look: [0, 1, -8] },
+        fov: 55,
+        fovPortrait: 65
     },
     game: {
         baseSpeed: 10, maxSpeed: 22, speedPerScore: 0.02,
-        spawnInterval: 1.8, poolSize: 8, spawnZ: -60, recycleZ: 8,
-        collideWindow: 0.6, scorePerObstacle: 10
+        spawnGap: 22, poolSize: 16, spawnZ: -60, recycleZ: 8,
+        collideWindow: 0.6, scorePerObstacle: 10, coinScore: 5, kcalPerMeter: 0.045
     },
     collectibles: { spawnIntervalMin: 1.2, spawnIntervalMax: 2.2 },
     
-    // MUST MATCH scenery.js ZONE_ORDER
-    zones: { length: 40, order: ['trees', 'city', 'coastal'] },
+    zones: { length: 140, order: ['park', 'city', 'temple'] },
     
     characters: {
         soldier: {

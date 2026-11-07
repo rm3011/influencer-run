@@ -1,220 +1,257 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
-import { ZONES, zoneAtDistance, buildSceneryFor, NEAR_SPACING, FAR_SPACING } from './scenery.js';
+import { ROWS, ZONE_GROUND, zoneAtDistance, makeScenery } from './scenery.js';
 
-const SCENERY_START = -160;
-const SCENERY_END   = 10;
-const SCENERY_SPAN  = SCENERY_END - SCENERY_START;
-const RECYCLE_Z_START = 5;
-const FADE_OUT_TIME   = 0.35;
+const START_Z = -170, END_Z = 14;
+const SHORE_X = 15;
+const ROAD_TILE = 12;              // metres of road per texture repeat
+const FOG_COLOR = 0xffd6b8;        // matches the sky horizon
 
-function createPool(scene, count, sideSign, layer) {
-    const slots = [];
-    for (let i = 0; i < count; i++) {
-        const container = new THREE.Group();
-        container.visible = false;
-        scene.add(container);
-        slots.push({ container, content: null, zoneId: null, sideSign, layer, fade: 1, fadeDir: 0, baseScale: 1, groundY: 0 });
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || innerWidth < 700;
+
+function makeRoadTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const g = c.getContext('2d');
+    g.fillStyle = '#4a4b57';
+    g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 2600; i++) {
+        const v = (60 + Math.random() * 50) | 0;
+        g.fillStyle = `rgba(${v},${v},${v + 8},0.35)`;
+        g.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
     }
-    return slots;
+    g.fillStyle = '#f4f4f4';
+    for (const u of [0.0375, 0.9625]) g.fillRect(u * 512 - 4, 0, 8, 512);            // edge lines
+    for (const u of [0.3625, 0.6375]) g.fillRect(u * 512 - 4, 0, 8, 200);            // lane dashes
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = THREE.ClampToEdgeWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(1, 360 / ROAD_TILE);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
 }
 
-function disposeContent(content) {
-    if (!content) return;
-    content.traverse((obj) => { if (obj.isMesh && obj.geometry) obj.geometry.dispose(); });
-}
-
-function applyFade(slot, f) {
-    const s = slot.baseScale * (0.2 + 0.8 * f);
-    slot.container.scale.set(s, s, s);
-    slot.container.position.y = slot.groundY - (1 - f) * 3.5 * slot.baseScale;
-}
-
-function placeSceneryAtZone(slot, z, zoneId, instant) {
-    if (slot.content) {
-        slot.container.remove(slot.content);
-        disposeContent(slot.content);
-        slot.content = null;
+function makeCloudTexture() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const g = c.getContext('2d');
+    const blobs = [[70, 78, 46], [118, 60, 54], [170, 76, 44], [100, 86, 40], [150, 88, 36]];
+    for (const [x, y, r] of blobs) {
+        const grad = g.createRadialGradient(x, y - r * 0.2, r * 0.1, x, y, r);
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.7, 'rgba(255,240,235,0.95)');
+        grad.addColorStop(1, 'rgba(255,225,220,0)');
+        g.fillStyle = grad;
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     }
-    const visual = buildSceneryFor(zoneId);
-    slot.container.add(visual);
-    slot.content = visual;
-    slot.zoneId = zoneId;
-
-    const zone = ZONES[zoneId];
-    const isFar = slot.layer === 'far';
-    const baseDist = isFar ? zone.xFar : zone.xNear;
-    const jitter = isFar ? zone.jitterFar : zone.jitterNear;
-    const scale  = isFar ? zone.farScale : 1.0;
-
-    slot.baseScale = scale;
-    slot.groundY = 0;
-
-    const j = (Math.random() - 0.5) * jitter;
-    
-    // If it's the coastal zone on the right side, push it further out
-    // so it sits on the sand next to the ocean.
-    let extraX = 0;
-    if (zoneId === 'coastal' && slot.sideSign > 0) {
-        extraX = isFar ? 6 : 3; 
-    }
-
-    slot.container.position.set(slot.sideSign * baseDist + j + extraX, 0, z);
-    slot.container.rotation.y = Math.random() * Math.PI * 2;
-    slot.container.visible = true;
-
-    if (instant) { slot.fade = 1; slot.fadeDir = 0; applyFade(slot, 1); }
-    else { slot.fade = 0; slot.fadeDir = +1; applyFade(slot, 0); }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
 }
 
 export function createEnvironment() {
     const scene = new THREE.Scene();
-    
-    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 300);
-    camera.position.set(...CONFIG.camera.position);
-    camera.lookAt(...CONFIG.camera.lookAt);
+    scene.fog = new THREE.Fog(FOG_COLOR, 55, 185);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const camera = new THREE.PerspectiveCamera(CONFIG.camera.fov, innerWidth / innerHeight, 0.1, 340);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMapping = THREE.NoToneMapping;       // keeps anime colours punchy
+    const maxPR = isMobile ? 1.25 : 1.5;
+    renderer.setPixelRatio(Math.min(devicePixelRatio, maxPR));
+    renderer.setSize(innerWidth, innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Reflections
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    const envScene = new THREE.Scene();
-    envScene.background = new THREE.Color(0xaaccff);
-    scene.environment = pmremGenerator.fromScene(envScene).texture;
-
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6); 
-    scene.add(ambient);
-    const sunLight = new THREE.DirectionalLight(0xfff0d0, 2.5); 
-    sunLight.position.set(20, 40, -50); 
-    scene.add(sunLight);
-
-    // Sky
-    const skyGeo = new THREE.SphereGeometry(200, 32, 16);
-    const skyMat = new THREE.ShaderMaterial({
-        side: THREE.BackSide, depthWrite: false,
-        uniforms: {
-            topColor: { value: new THREE.Color(0x3a80c0) },
-            bottomColor: { value: new THREE.Color(0xffe0c0) },
-            offset: { value: 20 }, exponent: { value: 0.6 }
-        },
-        vertexShader: `varying vec3 vWorldPosition; void main() { vec4 worldPos = modelMatrix * vec4(position, 1.0); vWorldPosition = worldPos.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-        fragmentShader: `uniform vec3 topColor, bottomColor; uniform float offset, exponent; varying vec3 vWorldPosition; void main() { float h = normalize(vWorldPosition + offset).y; gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0); }`
-    });
-    scene.add(new THREE.Mesh(skyGeo, skyMat));
-
-    const sunGeo = new THREE.CircleGeometry(25, 32);
-    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffdd, transparent: true, opacity: 1.0, fog: false });
-    const sun = new THREE.Mesh(sunGeo, sunMat);
-    sun.position.set(50, 60, -180);
-    sun.lookAt(camera.position);
+    // ----- lights (no shadow maps - fake blob shadows instead) -----
+    scene.add(new THREE.HemisphereLight(0xcfe6ff, 0xe0b88a, 1.35));
+    const sun = new THREE.DirectionalLight(0xfff0d8, 2.0);
+    sun.position.set(10, 25, 20);
     scene.add(sun);
 
-    // Ground, Beach, Ocean (Always there, but beach zone decorates the sand)
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(100, 300), new THREE.MeshStandardMaterial({ color: 0x3a6a2a, roughness: 1.0 }));
-    grass.rotation.x = -Math.PI / 2; grass.position.set(-60, 0, -100);
-    scene.add(grass);
+    // ----- sky dome: blue -> peach horizon, sun low over the sea -----
+    const sunDir = new THREE.Vector3(0.55, 0.3, -0.78).normalize();
+    const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(300, 24, 12),
+        new THREE.ShaderMaterial({
+            side: THREE.BackSide, depthWrite: false, fog: false,
+            uniforms: {
+                uTop: { value: new THREE.Color(0x2a74d8) },
+                uMid: { value: new THREE.Color(0x72b8ff) },
+                uHor: { value: new THREE.Color(0xffd2b0) },
+                uSun: { value: sunDir }
+            },
+            vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+            fragmentShader: `
+                uniform vec3 uTop, uMid, uHor, uSun; varying vec3 vDir;
+                void main(){
+                    vec3 d = normalize(vDir); float h = clamp(d.y, 0.0, 1.0);
+                    vec3 col = mix(uHor, uMid, smoothstep(0.0, 0.25, h));
+                    col = mix(col, uTop, smoothstep(0.2, 0.8, h));
+                    float s = max(dot(d, normalize(uSun)), 0.0);
+                    col += vec3(1.0, 0.85, 0.6) * pow(s, 24.0) * 0.55;
+                    col = mix(col, vec3(1.0, 0.97, 0.85), smoothstep(0.9975, 0.9988, s));
+                    gl_FragColor = vec4(col, 1.0);
+                }`
+        })
+    );
+    sky.renderOrder = -1;
+    scene.add(sky);
 
-    const sand = new THREE.Mesh(new THREE.PlaneGeometry(40, 300), new THREE.MeshStandardMaterial({ color: 0xe8d8a0, roughness: 0.9 }));
-    sand.rotation.x = -Math.PI / 2; sand.position.set(25, 0, -100);
-    scene.add(sand);
+    // ----- drifting clouds -----
+    const cloudMat = new THREE.SpriteMaterial({ map: makeCloudTexture(), transparent: true, depthWrite: false, fog: false });
+    const clouds = [];
+    for (let i = 0; i < 8; i++) {
+        const s = new THREE.Sprite(cloudMat);
+        s.scale.set(70 + Math.random() * 40, 32 + Math.random() * 16, 1);
+        s.position.set(-180 + i * 48 + Math.random() * 20, 45 + Math.random() * 40, -230 - Math.random() * 40);
+        scene.add(s);
+        clouds.push(s);
+    }
 
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(100, 300), new THREE.MeshStandardMaterial({ color: 0x1a6080, metalness: 0.6, roughness: 0.1 }));
-    ocean.rotation.x = -Math.PI / 2; ocean.position.set(80, 0, -100);
-    scene.add(ocean);
+    // ----- ground (unlit = cheap, colours stay vivid) -----
+    const flat = (w, l, color, x, y, z) => {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l),
+            new THREE.MeshBasicMaterial({ color }));
+        m.rotation.x = -Math.PI / 2;
+        m.position.set(x, y, z);
+        scene.add(m);
+        return m;
+    };
+    const CZ = -150, LEN = 360;
+    const leftGround = flat(200, LEN, ZONE_GROUND.park, -104.6, 0, CZ);
+    flat(1.8, LEN, 0xc9b8a2, -5.5, 0.01, CZ);                 // left pavement
+    flat(1.8, LEN, 0xcdbfae, 5.5, 0.01, CZ);                  // promenade
+    flat(SHORE_X - 4.6, LEN, 0xf2dca4, (SHORE_X + 4.6) / 2, 0, CZ);   // beach sand
+    flat(1.6, LEN, 0xd2b98a, SHORE_X - 0.8, 0.012, CZ);       // wet sand at the waterline
 
-    // Road
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 300), new THREE.MeshStandardMaterial({ color: 0x252525, roughness: 0.8 }));
-    road.rotation.x = -Math.PI / 2; road.position.set(0, 0.02, -100);
+    // kerbs
+    const kerbGeo = new THREE.BoxGeometry(0.6, 0.2, LEN);
+    const kerbMat = new THREE.MeshBasicMaterial({ color: 0xd9d2c6 });
+    for (const x of [-4.3, 4.3]) {
+        const k = new THREE.Mesh(kerbGeo, kerbMat);
+        k.position.set(x, 0.1, CZ);
+        scene.add(k);
+    }
+
+    // road: ONE plane, scrolling texture (no per-dash meshes)
+    const roadTex = makeRoadTexture();
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(8, LEN), new THREE.MeshBasicMaterial({ map: roadTex }));
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(0, 0.02, CZ);
     scene.add(road);
 
-    // Lane Markings
-    const laneMarkings = [];
-    const markGeo = new THREE.PlaneGeometry(0.15, 2);
-    const markMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    for (const x of [-1, 1]) { 
-        for (let z = SCENERY_START; z < SCENERY_END; z += 5) {
-            const mark = new THREE.Mesh(markGeo, markMat);
-            mark.rotation.x = -Math.PI / 2;
-            mark.position.set(x, 0.03, z);
-            scene.add(mark);
-            laneMarkings.push(mark);
-        }
-    }
+    // ----- sea: animated foam + sparkle, fogged like everything else -----
+    const seaUniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
+        uTime: { value: 0 }, uScroll: { value: 0 }
+    }]);
+    const sea = new THREE.Mesh(
+        new THREE.PlaneGeometry(210, LEN),
+        new THREE.ShaderMaterial({
+            uniforms: seaUniforms, fog: true,
+            vertexShader: `
+                varying vec3 vWorld;
+                #include <fog_pars_vertex>
+                void main(){
+                    vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_Position = projectionMatrix * mvPosition;
+                    #include <fog_vertex>
+                }`,
+            fragmentShader: `
+                uniform float uTime, uScroll; varying vec3 vWorld;
+                #include <fog_pars_fragment>
+                void main(){
+                    float d = max(vWorld.x - ${SHORE_X.toFixed(1)}, 0.0);
+                    float zz = vWorld.z - uScroll;
+                    vec3 shallow = vec3(0.22, 0.80, 0.80);
+                    vec3 deep = vec3(0.05, 0.33, 0.68);
+                    vec3 col = mix(shallow, deep, smoothstep(0.0, 45.0, d));
+                    float f = sin(d * 0.9 - uTime * 1.5 + sin(zz * 0.2) * 1.5);
+                    col += vec3(0.55) * smoothstep(0.85, 1.0, f) * (1.0 - smoothstep(0.0, 10.0, d));
+                    col += vec3(0.8) * smoothstep(1.2, 0.0, d);
+                    col += vec3(0.9, 0.95, 1.0) * pow(max(0.0, sin(vWorld.x * 1.7 + zz * 2.3 + uTime * 3.0)), 40.0) * 0.35;
+                    col += 0.04 * sin(zz * 0.35 + uTime * 0.8);
+                    gl_FragColor = vec4(col, 1.0);
+                    #include <fog_fragment>
+                }`
+        })
+    );
+    sea.rotation.x = -Math.PI / 2;
+    sea.position.set(SHORE_X + 105, -0.05, CZ);
+    scene.add(sea);
 
-    // Pools
-    const nearCount = Math.ceil(SCENERY_SPAN / NEAR_SPACING);
-    const farCount  = Math.ceil(SCENERY_SPAN / FAR_SPACING);
-
-    const leftNear  = createPool(scene, nearCount, -1, 'near');
-    const rightNear = createPool(scene, nearCount, +1, 'near');
-    const leftFar   = createPool(scene, farCount,  -1, 'far');
-    const rightFar  = createPool(scene, farCount,  +1, 'far');
-
+    // ----- scenery rows (recycled slots, zone chosen at the moment a slot re-enters at the far end) -----
     let distance = 0;
-    const zoneForZ = (z) => zoneAtDistance(distance + (-z));
-
-    function fillRow(row, spacing) {
-        let z = SCENERY_START;
-        for (const slot of row) { placeSceneryAtZone(slot, z, zoneForZ(z), true); z += spacing; }
-    }
-    fillRow(leftNear, NEAR_SPACING); fillRow(rightNear, NEAR_SPACING);
-    fillRow(leftFar, FAR_SPACING);   fillRow(rightFar, FAR_SPACING);
-
-    function updateRow(row, delta, speed) {
-        const step = speed * delta;
-        for (const slot of row) {
-            if (!slot.container.visible) continue;
-            slot.container.position.z += step;
-
-            if (slot.fadeDir > 0) {
-                slot.fade = Math.min(1, slot.fade + delta / FADE_OUT_TIME);
-                if (slot.fade >= 1) slot.fadeDir = 0;
-                applyFade(slot, slot.fade);
-            } else if (slot.fadeDir < 0) {
-                slot.fade = Math.max(0, slot.fade - delta / FADE_OUT_TIME);
-                if (slot.fade <= 0) {
-                    slot.container.position.z -= SCENERY_SPAN;
-                    placeSceneryAtZone(slot, slot.container.position.z, zoneForZ(slot.container.position.z), false);
-                    continue;
-                }
-                applyFade(slot, slot.fade);
-            }
-            if (slot.fadeDir === 0 && slot.container.position.z > RECYCLE_Z_START) slot.fadeDir = -1;
-
-            const wanted = zoneForZ(slot.container.position.z);
-            if (slot.zoneId !== wanted && slot.container.position.z < -60) {
-                placeSceneryAtZone(slot, slot.container.position.z, wanted, false);
-            }
+    const rows = ROWS.map(def => {
+        const count = Math.ceil((END_Z - START_Z) / def.spacing);
+        const row = { ...def, period: count * def.spacing, slots: [] };
+        for (let i = 0; i < count; i++) {
+            const g = new THREE.Group();
+            scene.add(g);
+            const slot = { g, z: START_Z + i * def.spacing };
+            populate(slot, row);
+            row.slots.push(slot);
         }
-    }
-
-    function updateWorld(delta, speed) {
-        distance += speed * delta;
-        const step = speed * delta;
-        
-        // Animate Ocean shimmer slightly
-        ocean.position.x = 80 + Math.sin(distance * 0.1) * 0.5;
-
-        for (const mark of laneMarkings) {
-            mark.position.z += step;
-            if (mark.position.z > SCENERY_END) mark.position.z -= SCENERY_SPAN;
-        }
-        updateRow(leftNear, delta, speed); updateRow(rightNear, delta, speed);
-        updateRow(leftFar, delta, speed);  updateRow(rightFar, delta, speed);
-    }
-
-    addEventListener('resize', () => {
-        camera.aspect = innerWidth / innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(innerWidth, innerHeight);
+        return row;
     });
 
-    return { scene, camera, renderer, updateWorld };
+    function populate(slot, row) {
+        slot.g.clear();
+        const s = makeScenery(row.side, row.layer, zoneAtDistance(distance - slot.z));
+        s.obj.rotation.y = s.yaw;
+        slot.g.add(s.obj);
+        slot.g.position.set(s.x, 0, slot.z);
+    }
+
+    // left ground colour follows the zone (look-ahead so it matches what is in view)
+    let groundZone = 'park';
+    function syncGround() {
+        const z = zoneAtDistance(distance + 45);
+        if (z === groundZone) return;
+        groundZone = z;
+        const c = new THREE.Color(ZONE_GROUND[z]);
+        const tween = window.gsap && window.gsap.to;
+        if (tween) window.gsap.to(leftGround.material.color, { r: c.r, g: c.g, b: c.b, duration: 2.5, ease: 'power1.inOut' });
+        else leftGround.material.color.copy(c);
+    }
+
+    let time = 0;
+    function updateWorld(delta, speed) {
+        time += delta;
+        distance += speed * delta;
+        seaUniforms.uTime.value = time;
+        seaUniforms.uScroll.value = distance;
+        if (speed > 0) roadTex.offset.y = (roadTex.offset.y + speed * delta / ROAD_TILE) % 1;
+
+        for (const c of clouds) {
+            c.position.x += delta * 1.6;
+            if (c.position.x > 220) c.position.x = -220;
+        }
+        if (speed > 0) {
+            const step = speed * delta;
+            for (const row of rows) {
+                for (const slot of row.slots) {
+                    slot.z += step;
+                    if (slot.z > END_Z) { slot.z -= row.period; populate(slot, row); }
+                    else slot.g.position.z = slot.z;
+                }
+            }
+            syncGround();
+        }
+    }
+
+    const baseFov = () => (innerWidth / innerHeight < 1 ? CONFIG.camera.fovPortrait : CONFIG.camera.fov);
+
+    function resize() {
+        camera.aspect = innerWidth / innerHeight;
+        camera.fov = baseFov();
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    return { scene, camera, renderer, updateWorld, resize, baseFov, maxPixelRatio: Math.min(devicePixelRatio, maxPR) };
 }

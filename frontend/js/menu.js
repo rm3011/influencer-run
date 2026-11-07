@@ -1,219 +1,174 @@
 import { CONFIG } from './config.js';
 
-const STATE = {
-    startEl: null, charModalEl: null, charGridEl: null,
-    countdownEl: null, countdownTextEl: null,
-    gameOverEl: null, finalScoreEl: null, newHighEl: null,
-    hudEl: null, scoreValEl: null, bestValEl: null,
-    cvBtnEl: null, cvTextEl: null,
-    onPlay: null, onCharSelect: null
-};
+const $ = (id) => document.getElementById(id);
+const S = { onPlay: null, onJogger: null, onRestart: null, onMenu: null, onCharSelect: null };
 
 const BEST_KEY = 'influencer-run-best';
+const STATS_KEY = 'influencer-run-stats';
 
-export function getBest() {
-    return parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
-}
-
+export const getBest = () => parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
 export function setBest(v) {
     localStorage.setItem(BEST_KEY, String(v));
-    if (STATE.bestValEl) STATE.bestValEl.textContent = String(v);
+    $('best-value').textContent = String(v);
 }
 
+export function getStats() {
+    try {
+        return Object.assign({ runs: 0, coins: 0, distance: 0 }, JSON.parse(localStorage.getItem(STATS_KEY) || '{}'));
+    } catch { return { runs: 0, coins: 0, distance: 0 }; }
+}
+export function recordRun({ coins, distance }) {
+    const s = getStats();
+    s.runs += 1; s.coins += coins; s.distance += distance;
+    localStorage.setItem(STATS_KEY, JSON.stringify(s));
+}
+
+const show = (el) => el.classList.remove('hidden');
+const hide = (el) => el.classList.add('hidden');
+
 export function initUI() {
-    STATE.startEl        = document.getElementById('start-screen');
-    STATE.charModalEl    = document.getElementById('char-modal');
-    STATE.charGridEl     = document.getElementById('char-grid');
-    STATE.countdownEl    = document.getElementById('countdown');
-    STATE.countdownTextEl= document.getElementById('countdown-text');
-    STATE.gameOverEl     = document.getElementById('game-over');
-    STATE.finalScoreEl   = document.getElementById('final-score-value');
-    STATE.newHighEl      = document.getElementById('new-high');
-    STATE.hudEl          = document.getElementById('hud');
-    STATE.scoreValEl     = document.getElementById('score-value');
-    STATE.bestValEl      = document.getElementById('best-value');
-    STATE.cvBtnEl        = document.getElementById('cv-btn');
-    STATE.cvTextEl       = STATE.cvBtnEl.querySelector('.cv-text');
+    $('best-value').textContent = String(getBest());
 
-    STATE.bestValEl.textContent = String(getBest());
-
-    document.getElementById('play-btn').addEventListener('click', () => {
-        if (STATE.onPlay) STATE.onPlay();
-    });
-
-    document.getElementById('stats-btn').addEventListener('click', () => {
-        alert('Stats coming soon!');
-    });
-
-    document.getElementById('char-btn').addEventListener('click', () => {
-        showCharacterModal();
-    });
-
-    document.getElementById('char-close-btn').addEventListener('click', () => {
-        STATE.charModalEl.classList.add('hidden');
-    });
-
-    document.getElementById('restart-btn').addEventListener('click', () => {
-        if (STATE.onPlay) STATE.onPlay();
-    });
-
-    document.getElementById('menu-btn').addEventListener('click', () => {
-        STATE.gameOverEl.classList.add('hidden');
-        STATE.startEl.classList.remove('hidden');
+    $('keyboard-btn').addEventListener('click', () => S.onPlay && S.onPlay());
+    $('jogger-btn').addEventListener('click', () => S.onJogger && S.onJogger());
+    $('restart-btn').addEventListener('click', () => S.onRestart && S.onRestart());
+    $('char-btn').addEventListener('click', showCharacterModal);
+    $('char-close-btn').addEventListener('click', () => hide($('char-modal')));
+    $('stats-btn').addEventListener('click', showStats);
+    $('stats-close-btn').addEventListener('click', () => hide($('stats-modal')));
+    $('menu-btn').addEventListener('click', () => {
+        hide($('game-over'));
+        hide($('hud'));
+        show($('start-screen'));
+        animateIn('#start-screen');
+        if (S.onMenu) S.onMenu();
     });
 
     buildCharacterCards();
+    animateIn('#start-screen');
+}
 
-    // GSAP Intro Animation
-    if (window.gsap) {
-        gsap.from('.glass-panel', { duration: 0.8, y: 30, opacity: 0, ease: 'power3.out' });
-        gsap.from('.game-title', { duration: 1, y: -20, opacity: 0, delay: 0.2, ease: 'power3.out' });
-        gsap.from('.btn-primary, .btn-secondary', { 
-            duration: 0.6, y: 20, opacity: 0, stagger: 0.1, delay: 0.4, ease: 'back.out(1.7)' 
-        });
-    }
+function animateIn(sel) {
+    if (!window.gsap) return;
+    gsap.fromTo(`${sel} .glass-panel`, { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: 'power3.out' });
+    gsap.fromTo(`${sel} .title-line`, { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, stagger: 0.12, delay: 0.1, ease: 'back.out(1.6)' });
+    gsap.fromTo(`${sel} .btn-primary, ${sel} .btn-secondary`, { y: 20, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.08, delay: 0.3, ease: 'back.out(1.7)' });
 }
 
 function buildCharacterCards() {
-    STATE.charGridEl.innerHTML = '';
-    const chars = CONFIG.characters || {};
-    const current = CONFIG.currentCharacter;
-
-    for (const [id, ch] of Object.entries(chars)) {
+    const grid = $('char-grid');
+    grid.innerHTML = '';
+    for (const [id, ch] of Object.entries(CONFIG.characters)) {
+        const selected = id === CONFIG.currentCharacter;
         const card = document.createElement('div');
-        card.className = 'char-card' + (id === current ? ' selected' : '');
-        card.dataset.charId = id;
-
-        const preview = document.createElement('div');
-        preview.className = 'char-preview';
-        preview.textContent = ch.name.charAt(0).toUpperCase();
-        card.appendChild(preview);
-
-        const name = document.createElement('div');
-        name.className = 'char-name';
-        name.textContent = ch.name;
-        card.appendChild(name);
-
-        if (id === current) {
-            const badge = document.createElement('div');
-            badge.className = 'char-badge';
-            badge.textContent = 'SELECTED';
-            card.appendChild(badge);
-        }
-
-        card.addEventListener('click', () => selectCharacter(id));
-        STATE.charGridEl.appendChild(card);
+        card.className = 'char-card' + (selected ? ' selected' : '');
+        card.innerHTML = `<div class="char-preview">${ch.name.charAt(0).toUpperCase()}</div>
+                          <div class="char-name">${ch.name}</div>
+                          ${selected ? '<div class="char-badge">SELECTED</div>' : ''}`;
+        card.addEventListener('click', () => {
+            CONFIG.currentCharacter = id;
+            buildCharacterCards();
+            if (S.onCharSelect) S.onCharSelect(id);
+        });
+        grid.appendChild(card);
     }
 }
 
-function selectCharacter(id) {
-    CONFIG.currentCharacter = id;
-    console.log('[menu] Character selected:', id);
+function showCharacterModal() {
     buildCharacterCards();
-    if (STATE.onCharSelect) STATE.onCharSelect(id);
+    show($('char-modal'));
+    if (window.gsap) gsap.fromTo('#char-modal .char-card', { y: 20, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3 });
 }
 
-export function onCharacterSelect(cb) {
-    STATE.onCharSelect = cb;
+function showStats() {
+    const s = getStats();
+    $('st-best').textContent = getBest();
+    $('st-runs').textContent = s.runs;
+    $('st-coins').textContent = s.coins;
+    $('st-dist').textContent = Math.round(s.distance).toLocaleString() + ' m';
+    $('st-kcal').textContent = Math.round(s.distance * CONFIG.game.kcalPerMeter).toLocaleString();
+    show($('stats-modal'));
+    if (window.gsap) gsap.fromTo('#stats-modal .stat-box', { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3 });
 }
 
-export function showCharacterModal() {
-    buildCharacterCards();
-    STATE.charModalEl.classList.remove('hidden');
-    if (window.gsap) {
-        gsap.fromTo('.char-card', { y: 20, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3 });
-    }
+export const onMenu = (cb) => { S.onMenu = cb; };
+export const onCharacterSelect = (cb) => { S.onCharSelect = cb; };
+
+export function showStart(onPlay, onJogger, onRestart) {
+    S.onPlay = onPlay;
+    S.onJogger = onJogger;
+    S.onRestart = onRestart;
+    show($('start-screen'));
+    hide($('game-over')); hide($('countdown')); hide($('hud'));
 }
 
-export function showStart(onPlay) {
-    STATE.onPlay = onPlay;
-    STATE.startEl.classList.remove('hidden');
-    STATE.gameOverEl.classList.add('hidden');
-    STATE.countdownEl.classList.add('hidden');
-    STATE.hudEl.classList.add('hidden');
+export function setModeStatus(message, disabled = false, isError = false) {
+    $('mode-status').textContent = message;
+    $('mode-status').classList.toggle('mode-status-error', isError);
+    $('keyboard-btn').disabled = disabled;
+    $('jogger-btn').disabled = disabled;
+}
+
+export function setControlStatus(message, isError = false) {
+    const status = $('control-status');
+    status.textContent = message;
+    status.classList.toggle('status-error', isError);
 }
 
 export function showCountdown(from, onDone) {
-    STATE.startEl.classList.add('hidden');
-    STATE.gameOverEl.classList.add('hidden');
-    STATE.hudEl.classList.remove('hidden');
-    STATE.countdownEl.classList.remove('hidden');
-
+    hide($('start-screen')); hide($('game-over'));
+    show($('hud')); show($('countdown'));
+    const el = $('countdown-text');
     let n = from;
-    function step() {
+    (function step() {
         if (n > 0) {
-            STATE.countdownTextEl.textContent = String(n);
-            
-            if (window.gsap) {
-                gsap.fromTo(STATE.countdownTextEl, 
-                    { scale: 2, opacity: 0 }, 
-                    { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' }
-                );
-            }
-
+            el.textContent = String(n);
+            if (window.gsap) gsap.fromTo(el, { scale: 2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' });
             n--;
             setTimeout(step, 800);
         } else {
-            STATE.countdownTextEl.textContent = 'GO!';
-            if (window.gsap) {
-                gsap.fromTo(STATE.countdownTextEl, 
-                    { scale: 0.5, opacity: 0 }, 
-                    { scale: 1.2, opacity: 1, duration: 0.3, ease: 'power2.out' }
-                );
-            }
-            setTimeout(() => {
-                STATE.countdownEl.classList.add('hidden');
-                onDone();
-            }, 500);
+            el.textContent = 'GO!';
+            if (window.gsap) gsap.fromTo(el, { scale: 0.5, opacity: 0 }, { scale: 1.2, opacity: 1, duration: 0.3, ease: 'power2.out' });
+            setTimeout(() => { hide($('countdown')); onDone(); }, 500);
         }
-    }
-    step();
+    })();
 }
 
-export function showGameOver(score, isNewHigh, onRestart, onMenu) {
-    STATE.finalScoreEl.textContent = String(score);
-    if (isNewHigh) STATE.newHighEl.classList.remove('hidden');
-    else STATE.newHighEl.classList.add('hidden');
-    
-    STATE.gameOverEl.classList.remove('hidden');
+export function showGameOver(score, isNewHigh, { coins = 0, distance = 0 } = {}) {
+    $('final-score-value').textContent = String(score);
+    $('go-coins').textContent = String(coins);
+    $('go-dist').textContent = Math.round(distance) + ' m';
+    $('go-kcal').textContent = String(Math.round(distance * CONFIG.game.kcalPerMeter));
+    isNewHigh ? show($('new-high')) : hide($('new-high'));
+    show($('game-over'));
     if (window.gsap) {
-        gsap.fromTo('.overlay-inner', { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' });
+        gsap.fromTo('#game-over .overlay-inner', { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' });
     }
 }
 
 export function hideAllOverlays() {
-    STATE.startEl.classList.add('hidden');
-    STATE.charModalEl.classList.add('hidden');
-    STATE.countdownEl.classList.add('hidden');
-    STATE.gameOverEl.classList.add('hidden');
+    for (const id of ['start-screen', 'char-modal', 'stats-modal', 'countdown', 'game-over']) hide($(id));
 }
 
-export function showHUD(show) {
-    if (show) STATE.hudEl.classList.remove('hidden');
-    else STATE.hudEl.classList.add('hidden');
+function bump(el) {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+    setTimeout(() => el.classList.remove('bump'), 160);
 }
 
 export function setScore(v, animate) {
-    STATE.scoreValEl.textContent = String(v);
-    if (animate) {
-        STATE.scoreValEl.classList.remove('bump');
-        void STATE.scoreValEl.offsetWidth;
-        STATE.scoreValEl.classList.add('bump');
-        setTimeout(() => STATE.scoreValEl.classList.remove('bump'), 160);
-    }
+    const el = $('score-value');
+    el.textContent = String(v);
+    if (animate) bump(el);
 }
-
-export function setCVStatus(state) {
-    if (!STATE.cvBtnEl) return;
-    STATE.cvBtnEl.classList.remove('off', 'loading', 'calibrating', 'ready', 'error');
-    STATE.cvBtnEl.classList.add(state);
-
-    const labels = {
-        off:         'Enable Camera',
-        loading:     'Loading model...',
-        calibrating: 'Stand still...',
-        ready:       'Camera Active',
-        error:       'Camera Error'
-    };
-    STATE.cvTextEl.textContent = labels[state] || 'Camera';
+export function setCoins(v, animate) {
+    const el = $('coins-value');
+    el.textContent = String(v);
+    if (animate) bump(el);
+}
+export function setDistance(m) {
+    $('dist-value').textContent = String(Math.floor(m));
+    $('kcal-value').textContent = String(Math.floor(m * CONFIG.game.kcalPerMeter));
 }
