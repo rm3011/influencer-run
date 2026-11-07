@@ -77,6 +77,14 @@ canvas { display: block; }
     background: radial-gradient(circle at 35% 30%, #fff3a0, var(--gold) 55%, #c27a0a);
     border: 2px solid #8a5200;
 }
+.ladoo-ico {
+    width: 16px; height: 16px; border-radius: 50%;
+    background:
+        radial-gradient(circle at 35% 28%, #ffe276 0 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 62%, #e87516 0 1px, transparent 1.5px),
+        radial-gradient(circle at 35% 30%, #ffd65a, #f6a51b 72%, #bd6415);
+    border: 1px solid #9a5010;
+}
 
 /* ==================== OVERLAYS ==================== */
 .overlay {

@@ -5,31 +5,54 @@ import { Builder, toonCoin } from './toon.js';
 const POOL_SIZE = 36;
 const COIN_Y = 1.05;
 
-// Coin stands upright facing the camera and spins around the VERTICAL (Y) axis.
-// Emblem = dumbbell, because this is a fitness game.
-function buildCoin() {
+function buildCollectible(characterId) {
     const b = new Builder();
-    const GOLD = 0xffc21a, LIGHT = 0xffe27a, DK = 0xc27a0a;
-    b.add(new THREE.TorusGeometry(0.36, 0.07, 6, 18), GOLD, 0, 0, 0);
-    b.add(new THREE.CylinderGeometry(0.33, 0.33, 0.07, 18), LIGHT, 0, 0, 0, { rx: Math.PI / 2 });
-    for (const z of [0.045, -0.045]) {
-        b.box(0.34, 0.06, 0.03, DK, 0, 0, z);
-        b.box(0.07, 0.26, 0.03, DK, -0.13, 0, z);
-        b.box(0.07, 0.26, 0.03, DK, 0.13, 0, z);
+    if (CONFIG.characters[characterId].collectibleType === 'ladoo') {
+        b.sph(0.3, 0xf6a51b, 0, 0, 0);
+        const sprinkleColors = [0xffd45c, 0xff8126, 0xf5df9b];
+        for (let i = 0; i < 10; i++) {
+            const angle = i * Math.PI * (3 - Math.sqrt(5));
+            const y = 1 - (i / 9) * 2;
+            const radius = Math.sqrt(1 - y * y) * 0.29;
+            b.sph(0.025, sprinkleColors[i % sprinkleColors.length],
+                Math.cos(angle) * radius, y * 0.29, Math.sin(angle) * radius);
+        }
+    } else {
+        const GOLD = 0xffc21a, LIGHT = 0xffe27a, DK = 0xc27a0a;
+        b.add(new THREE.TorusGeometry(0.36, 0.07, 6, 18), GOLD, 0, 0, 0);
+        b.add(new THREE.CylinderGeometry(0.33, 0.33, 0.07, 18), LIGHT, 0, 0, 0, { rx: Math.PI / 2 });
+        for (const z of [0.045, -0.045]) {
+            b.box(0.34, 0.06, 0.03, DK, 0, 0, z);
+            b.box(0.07, 0.26, 0.03, DK, -0.13, 0, z);
+            b.box(0.07, 0.26, 0.03, DK, 0.13, 0, z);
+        }
     }
-    return b.mesh({ material: toonCoin });
+    const collectible = b.mesh({ material: toonCoin });
+    return collectible.geometry;
 }
 
 export function createCoinPool(scene) {
-    const proto = buildCoin();
+    const geometry = buildCollectible(CONFIG.currentCharacter);
     const pool = [];
     for (let i = 0; i < POOL_SIZE; i++) {
-        const mesh = proto.clone();
+        const mesh = new THREE.Mesh(geometry, toonCoin);
         mesh.visible = false;
         scene.add(mesh);
         pool.push({ mesh, active: false, lane: 0, prevZ: 0, spin: 0, phase: 0 });
     }
     return pool;
+}
+
+export function setCollectibleCharacter(pool, characterId) {
+    const geometry = buildCollectible(characterId);
+    const previousGeometry = pool[0]?.mesh.geometry;
+    for (const collectible of pool) {
+        collectible.mesh.geometry = geometry;
+        collectible.mesh.visible = false;
+        collectible.mesh.position.z = -999;
+        collectible.active = false;
+    }
+    previousGeometry?.dispose();
 }
 
 export function spawnCoinTrail(pool, lane, z, count = 5, gap = 2.4) {

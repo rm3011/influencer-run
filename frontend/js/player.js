@@ -38,6 +38,8 @@ export function createPlayer(scene) {
     let mixer = null;
     const actions = {};
     let current = null;
+    let modelRoot = null;
+    let loadRequestId = 0;
 
     function play(name, fade = 0.2) {
         const next = actions[name];
@@ -47,59 +49,118 @@ export function createPlayer(scene) {
         current = next;
     }
 
-    const modelPath = CONFIG.characters[CONFIG.currentCharacter].model;
-    new GLTFLoader().load(modelPath, (gltf) => {
-        const model = gltf.scene;
-
-        // normalise size, put feet on the origin
-        const size = new THREE.Vector3();
-        new THREE.Box3().setFromObject(model).getSize(size);
-        model.scale.setScalar(P.height / size.y);
-        const box = new THREE.Box3().setFromObject(model);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        model.position.set(-center.x, -box.min.y, -center.z);
-        holder.add(model);
-
-        // toon materials + ink outline
-        const skinned = [];
-        model.traverse((o) => {
-            if (!o.isMesh) return;
-            o.frustumCulled = false;
-            const old = Array.isArray(o.material) ? o.material : [o.material];
-            const mats = old.map(m => new THREE.MeshToonMaterial({
-                color: m.color ? m.color.clone() : 0xffffff, map: m.map || null, gradientMap: TOON_GRADIENT
-            }));
-            o.material = Array.isArray(o.material) ? mats : mats[0];
-            if (o.isSkinnedMesh) skinned.push(o);
-        });
-        for (const o of skinned) {
-            const ol = new THREE.SkinnedMesh(o.geometry, outlineMat);
-            ol.bind(o.skeleton, o.bindMatrix);
-            ol.position.copy(o.position); ol.quaternion.copy(o.quaternion); ol.scale.copy(o.scale);
-            ol.frustumCulled = false;
-            o.parent.add(ol);
-        }
-
-        mixer = new THREE.AnimationMixer(model);
-        const anims = gltf.animations;
-        actions.idle = mixer.clipAction(anims.find(a => a.name === 'Idle') || anims[0]);
-        actions.run = mixer.clipAction(anims.find(a => a.name === 'Run') || anims[1] || anims[0]);
-        play(state.pose);
-    }, undefined, (err) => {
-        console.warn('[player] model failed to load - using fallback capsule', err);
-        const radius = P.height * 0.2;
-        const f = new THREE.Mesh(new THREE.CapsuleGeometry(radius, P.height - radius * 2, 4, 8),
-            new THREE.MeshToonMaterial({ color: 0xff7a3d, gradientMap: TOON_GRADIENT }));
-        f.position.y = P.height / 2;
-        holder.add(f);
-    });
-
     const state = {
         currentLane: 1, velocityY: 0, isGrounded: true,
         isRolling: false, rollTimer: 0, dead: false, pose: 'idle'
     };
     let rollK = 0;
+
+    function disposeModel(root) {
+        const geometries = new Set();
+        const materials = new Set();
+        const textures = new Set();
+        root.traverse((o) => {
+            if (!o.isMesh) return;
+            geometries.add(o.geometry);
+            for (const material of (Array.isArray(o.material) ? o.material : [o.material])) {
+                if (!material) continue;
+                materials.add(material);
+                if (material.map) textures.add(material.map);
+            }
+        });
+        for (const geometry of geometries) geometry.dispose();
+        for (const texture of textures) texture.dispose();
+        for (const material of materials) material.dispose();
+    }
+
+    function clearModel() {
+        if (mixer) mixer.stopAllAction();
+        mixer = null;
+        actions.idle = null;
+        actions.run = null;
+        current = null;
+        if (modelRoot) {
+            holder.remove(modelRoot);
+            disposeModel(modelRoot);
+            modelRoot = null;
+        }
+    }
+
+    function loadCharacter(characterId) {
+        const requestId = ++loadRequestId;
+        clearModel();
+        const character = CONFIG.characters[characterId];
+        new GLTFLoader().load(character.model, (gltf) => {
+            const model = gltf.scene;
+            if (requestId !== loadRequestId) {
+                disposeModel(model);
+                return;
+            }
+
+            const size = new THREE.Vector3();
+            new THREE.Box3().setFromObject(model).getSize(size);
+            if (size.y <= 0) {
+                console.error(`[player] character model has invalid height: ${character.model}`);
+                disposeModel(model);
+                return;
+            }
+            model.scale.setScalar(P.height / size.y);
+            const box = new THREE.Box3().setFromObject(model);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            model.position.set(-center.x, -box.min.y, -center.z);
+            holder.add(model);
+            modelRoot = model;
+
+            const skinned = [];
+            model.traverse((o) => {
+                if (!o.isMesh) return;
+                o.frustumCulled = false;
+                const old = Array.isArray(o.material) ? o.material : [o.material];
+                const mats = old.map(m => new THREE.MeshToonMaterial({
+                    color: m.color ? m.color.clone() : 0xffffff, map: m.map || null, gradientMap: TOON_GRADIENT
+                }));
+                o.material = Array.isArray(o.material) ? mats : mats[0];
+                for (const material of old) material.dispose();
+                if (o.isSkinnedMesh) skinned.push(o);
+            });
+            for (const o of skinned) {
+                const outline = new THREE.SkinnedMesh(o.geometry, outlineMat);
+                outline.bind(o.skeleton, o.bindMatrix);
+                outline.position.copy(o.position);
+                outline.quaternion.copy(o.quaternion);
+                outline.scale.copy(o.scale);
+                outline.frustumCulled = false;
+                o.parent.add(outline);
+            }
+
+            mixer = new THREE.AnimationMixer(model);
+            const anims = gltf.animations;
+            if (anims.length) {
+                actions.idle = mixer.clipAction(anims.find(a => a.name === 'Idle') || anims[0]);
+                actions.run = mixer.clipAction(anims.find(a => a.name === 'Run') || anims[1] || anims[0]);
+                play(state.pose);
+            }
+        }, undefined, (err) => {
+            if (requestId !== loadRequestId) return;
+            console.warn(`[player] could not load ${character.model} - using fallback capsule`, err);
+            const radius = P.height * 0.2;
+            modelRoot = new THREE.Mesh(new THREE.CapsuleGeometry(radius, P.height - radius * 2, 4, 8),
+                new THREE.MeshToonMaterial({ color: character.collectibleColor, gradientMap: TOON_GRADIENT }));
+            modelRoot.position.y = P.height / 2;
+            holder.add(modelRoot);
+        });
+    }
+
+    function setCharacter(characterId) {
+        if (!Object.prototype.hasOwnProperty.call(CONFIG.characters, characterId)) {
+            throw new Error(`Unknown character: ${characterId}`);
+        }
+        CONFIG.currentCharacter = characterId;
+        loadCharacter(characterId);
+    }
+
+    loadCharacter(CONFIG.currentCharacter);
 
     const moveLeft = () => { if (!state.dead && state.currentLane > 0) state.currentLane--; };
     const moveRight = () => { if (!state.dead && state.currentLane < P.laneX.length - 1) state.currentLane++; };
@@ -184,5 +245,5 @@ export function createPlayer(scene) {
         };
     }
 
-    return { group, state, moveLeft, moveRight, jump, roll, update, getBounds, setPose, setRunSpeed, crash, reset };
+    return { group, state, moveLeft, moveRight, jump, roll, update, getBounds, setPose, setRunSpeed, crash, reset, setCharacter };
 }

@@ -4,11 +4,11 @@ import { createPlayer } from './player.js';
 import { createObstaclePool, trySpawnObstacle, updateObstacles, recyclePassedObstacles,
          checkCollision, resetObstacles } from './obstacles.js';
 import { createCoinPool, spawnCoinTrail, laneHasCoins, resetCoins, updateCollectibles,
-         checkCoinCollision, getCoinPoints } from './collectibles.js';
+         checkCoinCollision, getCoinPoints, setCollectibleCharacter } from './collectibles.js';
 import { Input, attachKeyboard, attachTouch } from './input.js';
 import { startCV } from './cv-controller.js';
 import {
-    initUI, showStart, showCountdown, showGameOver, hideAllOverlays, onMenu,
+    initUI, showStart, showCountdown, showGameOver, hideAllOverlays, onMenu, onCharacterSelect,
     setScore, setCoins, setDistance, setBest, getBest, setModeStatus, setControlStatus, recordRun
 } from './menu.js';
 
@@ -200,6 +200,11 @@ onMenu(() => {
         ? 'Jogger controls selected. Choose Real-Time Jogger to calibrate and start.'
         : 'Keyboard controls: arrows or WASD.', false);
     tweenCamera(CONFIG.camera.menu, 1.0);
+});
+
+onCharacterSelect((characterId) => {
+    player.setCharacter(characterId);
+    setCollectibleCharacter(coins, characterId);
 });
 
 addEventListener('keydown', (e) => {

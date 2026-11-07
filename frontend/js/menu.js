@@ -28,6 +28,7 @@ const hide = (el) => el.classList.add('hidden');
 
 export function initUI() {
     $('best-value').textContent = String(getBest());
+    setCollectibleDisplay(CONFIG.currentCharacter);
 
     $('keyboard-btn').addEventListener('click', () => S.onPlay && S.onPlay());
     $('jogger-btn').addEventListener('click', () => S.onJogger && S.onJogger());
@@ -68,6 +69,7 @@ function buildCharacterCards() {
                           ${selected ? '<div class="char-badge">SELECTED</div>' : ''}`;
         card.addEventListener('click', () => {
             CONFIG.currentCharacter = id;
+            setCollectibleDisplay(id);
             buildCharacterCards();
             if (S.onCharSelect) S.onCharSelect(id);
         });
@@ -114,6 +116,15 @@ export function setControlStatus(message, isError = false) {
     const status = $('control-status');
     status.textContent = message;
     status.classList.toggle('status-error', isError);
+}
+
+function setCollectibleDisplay(characterId) {
+    const icon = document.querySelector('.coin-ico, .ladoo-ico');
+    const isLadoo = CONFIG.characters[characterId].collectibleType === 'ladoo';
+    icon.classList.toggle('coin-ico', !isLadoo);
+    icon.classList.toggle('ladoo-ico', isLadoo);
+    icon.setAttribute('aria-label', isLadoo ? 'Ladoos' : 'Coins');
+    icon.title = isLadoo ? 'Ladoos' : 'Coins';
 }
 
 export function showCountdown(from, onDone) {

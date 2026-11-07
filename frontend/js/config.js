@@ -1,6 +1,6 @@
 export const CONFIG = {
     player: {
-        height: 0.4,
+        height: 1.9,
         renderHeight: 0.4,
         realHeightMeters: 1.75,
         baseY: 0.25,
@@ -35,6 +35,13 @@ export const CONFIG = {
             name: 'Soldier',
             model: './assets/models/Soldier.glb',
             collectibleColor: 0xffd700,
+            collectibleValue: 5
+        },
+        bheem: {
+            name: 'Bheem',
+            model: './assets/models/bheem.glb',
+            collectibleType: 'ladoo',
+            collectibleColor: 0xffa51e,
             collectibleValue: 5
         }
     },
