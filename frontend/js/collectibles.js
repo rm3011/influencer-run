@@ -2,18 +2,13 @@ import * as THREE from 'three';
 import { CONFIG } from './config.js';
 
 const COIN_COUNT = 20;
-const COIN_RADIUS = 0.22;
-const COIN_THICKNESS = 0.06;
-const COIN_HEIGHT = 0.5;   // elevated above ground
+const COIN_HEIGHT = 0.5;
 
-// Reads the currently-selected character's collectible appearance.
-// Falls back to gold coin if character config is missing.
 function getCoinAppearance() {
     const charId = CONFIG.currentCharacter || 'soldier';
     const char = CONFIG.characters?.[charId];
     return {
-        color: char?.collectibleColor ?? 0xffd700,
-        shape: char?.collectibleShape ?? 'coin',
+        color: char?.collectibleColor ?? 0xffd700, // Classic bright gold
         value: char?.collectibleValue ?? 5
     };
 }
@@ -21,22 +16,31 @@ function getCoinAppearance() {
 export function createCoinPool(scene) {
     const pool = [];
     const appearance = getCoinAppearance();
-    const coinGeo = new THREE.TorusGeometry(COIN_RADIUS, COIN_THICKNESS, 8, 16);
-    const coinMat = new THREE.MeshBasicMaterial({ color: appearance.color });
+    
+    const coinMat = new THREE.MeshStandardMaterial({ 
+        color: appearance.color, 
+        metalness: 1.0, 
+        roughness: 0.1, // Very shiny
+        emissive: appearance.color,
+        emissiveIntensity: 0.2
+    });
+
+    const ringGeo = new THREE.TorusGeometry(0.22, 0.06, 16, 32);
+    const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.04, 24);
+    discGeo.rotateX(Math.PI / 2);
 
     for (let i = 0; i < COIN_COUNT; i++) {
-        const mesh = new THREE.Mesh(coinGeo, coinMat);
-        // Upright orientation: torus lies in XY plane by default (flat on ground).
-        // Rotate 90° on X to stand it up like a spinning ring facing the player.
-        mesh.rotation.x = Math.PI / 2;
-        mesh.visible = false;
-        scene.add(mesh);
-        pool.push({
-            mesh,
-            active: false,
-            spin: 0,
-            bobPhase: 0
-        });
+        const group = new THREE.Group();
+        const ring = new THREE.Mesh(ringGeo, coinMat);
+        group.add(ring);
+        const disc = new THREE.Mesh(discGeo, coinMat);
+        group.add(disc);
+
+        group.rotation.x = Math.PI / 2;
+        group.visible = false;
+        scene.add(group);
+        
+        pool.push({ mesh: group, active: false, spin: 0, bobPhase: 0 });
     }
     return pool;
 }
@@ -56,18 +60,12 @@ export function spawnCoin(pool, lane, z) {
 export function updateCollectibles(pool, delta, speed, elapsed) {
     for (const slot of pool) {
         if (!slot.active) continue;
-
-        // Move toward player
+        
         slot.mesh.position.z += speed * delta;
-
-        // Spin around Y (vertical axis) — Mario-style spin
-        slot.spin += delta * 3;
+        slot.spin += delta * 4;
         slot.mesh.rotation.y = slot.spin;
+        slot.mesh.position.y = COIN_HEIGHT + Math.sin(elapsed * 4 + slot.bobPhase) * 0.1;
 
-        // Bob up/down gently around elevated height
-        slot.mesh.position.y = COIN_HEIGHT + Math.sin(elapsed * 3 + slot.bobPhase) * 0.08;
-
-        // Recycle past player
         if (slot.mesh.position.z > CONFIG.game.recycleZ) {
             slot.active = false;
             slot.mesh.visible = false;
@@ -83,8 +81,7 @@ export function checkCoinCollision(pool, playerBounds) {
         const dx = Math.abs(playerBounds.x - slot.mesh.position.x);
         const dz = Math.abs(slot.mesh.position.z);
         const dy = Math.abs(playerBounds.y - slot.mesh.position.y);
-        // Coin is elevated at y=0.5, player base is at y=0.25, top at y=0.75
-        // Using playerBounds.y as center of player torso, generous vertical window
+        
         if (dx < 0.6 && dz < 0.6 && dy < 0.7) {
             slot.active = false;
             slot.mesh.visible = false;
@@ -99,10 +96,14 @@ export function getCoinPoints() {
     return getCoinAppearance().value;
 }
 
-// Also expose a helper for when you swap characters — updates all coin visuals
 export function refreshCoinAppearance(pool) {
     const appearance = getCoinAppearance();
     for (const slot of pool) {
-        slot.mesh.material.color.setHex(appearance.color);
+        slot.mesh.traverse((child) => {
+            if (child.isMesh) {
+                child.material.color.setHex(appearance.color);
+                child.material.emissive.setHex(appearance.color);
+            }
+        });
     }
 }

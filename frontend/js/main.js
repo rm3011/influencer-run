@@ -193,6 +193,7 @@ function animate() {
         const coinHits = checkCoinCollision(coins, player.getBounds());
         if (coinHits > 0) {
             game.score += coinHits * getCoinPoints();
+            setScore(game.score, true);
         }
 
         const passed = recyclePassedObstacles(obstacles);

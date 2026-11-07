@@ -1,33 +1,12 @@
 import { CONFIG } from './config.js';
 
-// --- Public API used by main.js ---
-// initUI()           — wire menu buttons, hide HUD, load best score
-// showStart(onPlay)  — show start screen, call onPlay when Play clicked
-// showCharacterModal() — open character select
-// showCountdown(from, onDone) — "3..2..1..GO"
-// showGameOver(score, isNewHigh, onRestart, onMenu) — game over screen
-// hideAllOverlays()  — hide every overlay
-// showHUD(show)      — toggle score HUD
-// setScore(v, animate) — update score, optional pulse
-// setBest(v)         — update best score display
-// setCVStatus(state) — 'off' | 'loading' | 'calibrating' | 'ready' | 'error'
-
 const STATE = {
-    startEl: null,
-    charModalEl: null,
-    charGridEl: null,
-    countdownEl: null,
-    countdownTextEl: null,
-    gameOverEl: null,
-    finalScoreEl: null,
-    newHighEl: null,
-    hudEl: null,
-    scoreValEl: null,
-    bestValEl: null,
-    cvBtnEl: null,
-    cvTextEl: null,
-    onPlay: null,
-    onCharSelect: null
+    startEl: null, charModalEl: null, charGridEl: null,
+    countdownEl: null, countdownTextEl: null,
+    gameOverEl: null, finalScoreEl: null, newHighEl: null,
+    hudEl: null, scoreValEl: null, bestValEl: null,
+    cvBtnEl: null, cvTextEl: null,
+    onPlay: null, onCharSelect: null
 };
 
 const BEST_KEY = 'influencer-run-best';
@@ -56,42 +35,43 @@ export function initUI() {
     STATE.cvBtnEl        = document.getElementById('cv-btn');
     STATE.cvTextEl       = STATE.cvBtnEl.querySelector('.cv-text');
 
-    // Best score
     STATE.bestValEl.textContent = String(getBest());
 
-    // Play button
     document.getElementById('play-btn').addEventListener('click', () => {
         if (STATE.onPlay) STATE.onPlay();
     });
 
-    // Stats (placeholder)
     document.getElementById('stats-btn').addEventListener('click', () => {
         alert('Stats coming soon!');
     });
 
-    // Character modal open
     document.getElementById('char-btn').addEventListener('click', () => {
         showCharacterModal();
     });
 
-    // Character modal close
     document.getElementById('char-close-btn').addEventListener('click', () => {
         STATE.charModalEl.classList.add('hidden');
     });
 
-    // Restart
     document.getElementById('restart-btn').addEventListener('click', () => {
         if (STATE.onPlay) STATE.onPlay();
     });
 
-    // Main menu
     document.getElementById('menu-btn').addEventListener('click', () => {
         STATE.gameOverEl.classList.add('hidden');
         STATE.startEl.classList.remove('hidden');
     });
 
-    // Build character cards
     buildCharacterCards();
+
+    // GSAP Intro Animation
+    if (window.gsap) {
+        gsap.from('.glass-panel', { duration: 0.8, y: 30, opacity: 0, ease: 'power3.out' });
+        gsap.from('.game-title', { duration: 1, y: -20, opacity: 0, delay: 0.2, ease: 'power3.out' });
+        gsap.from('.btn-primary, .btn-secondary', { 
+            duration: 0.6, y: 20, opacity: 0, stagger: 0.1, delay: 0.4, ease: 'back.out(1.7)' 
+        });
+    }
 }
 
 function buildCharacterCards() {
@@ -128,13 +108,8 @@ function buildCharacterCards() {
 
 function selectCharacter(id) {
     CONFIG.currentCharacter = id;
-    // Note: swapping the actual 3D model at runtime is a future enhancement.
-    // For now, this only updates the config + UI. Console note for devs:
-    console.log('[menu] Character selected:', id,
-                '- model swap pending: reload to load', CONFIG.characters[id].model);
-    // Re-render cards
+    console.log('[menu] Character selected:', id);
     buildCharacterCards();
-    // Notify any listener (main.js can optionally refresh coin appearance)
     if (STATE.onCharSelect) STATE.onCharSelect(id);
 }
 
@@ -145,6 +120,9 @@ export function onCharacterSelect(cb) {
 export function showCharacterModal() {
     buildCharacterCards();
     STATE.charModalEl.classList.remove('hidden');
+    if (window.gsap) {
+        gsap.fromTo('.char-card', { y: 20, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3 });
+    }
 }
 
 export function showStart(onPlay) {
@@ -165,18 +143,28 @@ export function showCountdown(from, onDone) {
     function step() {
         if (n > 0) {
             STATE.countdownTextEl.textContent = String(n);
-            // Re-trigger animation
-            STATE.countdownTextEl.style.animation = 'none';
-            void STATE.countdownTextEl.offsetWidth;
-            STATE.countdownTextEl.style.animation = '';
+            
+            if (window.gsap) {
+                gsap.fromTo(STATE.countdownTextEl, 
+                    { scale: 2, opacity: 0 }, 
+                    { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' }
+                );
+            }
+
             n--;
-            setTimeout(step, 700);
+            setTimeout(step, 800);
         } else {
             STATE.countdownTextEl.textContent = 'GO!';
+            if (window.gsap) {
+                gsap.fromTo(STATE.countdownTextEl, 
+                    { scale: 0.5, opacity: 0 }, 
+                    { scale: 1.2, opacity: 1, duration: 0.3, ease: 'power2.out' }
+                );
+            }
             setTimeout(() => {
                 STATE.countdownEl.classList.add('hidden');
                 onDone();
-            }, 400);
+            }, 500);
         }
     }
     step();
@@ -186,9 +174,11 @@ export function showGameOver(score, isNewHigh, onRestart, onMenu) {
     STATE.finalScoreEl.textContent = String(score);
     if (isNewHigh) STATE.newHighEl.classList.remove('hidden');
     else STATE.newHighEl.classList.add('hidden');
+    
     STATE.gameOverEl.classList.remove('hidden');
-    // Rebind (they were bound in initUI but re-bind here to be safe)
-    // Actually, use stored callbacks
+    if (window.gsap) {
+        gsap.fromTo('.overlay-inner', { scale: 0.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out(1.5)' });
+    }
 }
 
 export function hideAllOverlays() {

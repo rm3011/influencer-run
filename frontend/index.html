@@ -13,6 +13,8 @@
         }
     }
     </script>
+    <!-- GSAP via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 </head>
 <body>
     <!-- Score HUD (hidden until game starts) -->
@@ -33,9 +35,9 @@
 
     <!-- === START SCREEN === -->
     <div id="start-screen" class="overlay">
-        <div class="overlay-inner">
+        <div class="overlay-inner glass-panel">
             <h1 class="game-title">INFLUENCER RUN</h1>
-            <p class="game-subtitle">Tamil fitness creators!</p>
+            <p class="game-subtitle">Chennai Twilight Edition</p>
 
             <button id="play-btn" class="btn-primary">PLAY</button>
 
@@ -50,7 +52,7 @@
 
     <!-- === CHARACTER SELECT MODAL === -->
     <div id="char-modal" class="overlay hidden">
-        <div class="overlay-inner modal-inner">
+        <div class="overlay-inner modal-inner glass-panel">
             <h2>SELECT CHARACTER</h2>
             <div id="char-grid" class="char-grid"></div>
             <button id="char-close-btn" class="btn-secondary">CLOSE</button>
@@ -64,7 +66,7 @@
 
     <!-- === GAME OVER === -->
     <div id="game-over" class="overlay hidden">
-        <div class="overlay-inner">
+        <div class="overlay-inner glass-panel">
             <h1 class="game-over-title">GAME OVER</h1>
             <div class="final-score">SCORE <span id="final-score-value">0</span></div>
             <div id="new-high" class="new-high hidden">NEW HIGH SCORE!</div>
