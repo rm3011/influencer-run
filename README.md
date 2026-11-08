@@ -1,8 +1,8 @@
 # Influencer Run
 
-A browser-based endless runner game featuring Tamil fitness influencers as playable characters, controlled by computer vision (webcam body tracking) instead of keyboard input. Built with Three.js and vanilla JavaScript, designed to run on low-end hardware (i3 + 8GB RAM target).
+A browser-based endless runner game featuring Tamil fitness influencers as playable characters. Choose keyboard controls or real-time webcam pose controls from the main menu. Built with Three.js and vanilla JavaScript.
 
-> **Status:** Core game loop working with keyboard controls. Character loads with run animation. Four obstacle types implemented. Computer vision controller pending.
+> **Controls:** Keyboard mode uses arrow keys or WASD. Real-time jogger mode uses head leans to change lanes, raising the head to jump, and lowering it to roll. Camera pose detection runs in a worker to keep rendering responsive; camera access requires HTTPS or localhost and user permission.
 
 ---
 

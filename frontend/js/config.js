@@ -31,8 +31,8 @@ export const CONFIG = {
     zones: { length: 140, order: ['park', 'city', 'temple'] },
     
     characters: {
-        soldier: {
-            name: 'Soldier',
+        test: {
+            name: 'Test',
             model: './assets/models/Soldier.glb',
             collectibleColor: 0xffd700,
             collectibleValue: 5
@@ -45,7 +45,7 @@ export const CONFIG = {
             collectibleValue: 5
         }
     },
-    currentCharacter: 'soldier',
+    currentCharacter: 'bheem',
     colors: {
         sky: 0x87CEEB, ground: 0x3a7d3a,
         tall: 0x0000cc, block: 0x8800cc,

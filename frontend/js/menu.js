@@ -64,7 +64,10 @@ function buildCharacterCards() {
         const selected = id === CONFIG.currentCharacter;
         const card = document.createElement('div');
         card.className = 'char-card' + (selected ? ' selected' : '');
-        card.innerHTML = `<div class="char-preview">${ch.name.charAt(0).toUpperCase()}</div>
+        const preview = id === 'bheem'
+            ? '<img src="./assets/images/bheem.png" alt="">'
+            : ch.name.charAt(0).toUpperCase();
+        card.innerHTML = `<div class="char-preview">${preview}</div>
                           <div class="char-name">${ch.name}</div>
                           ${selected ? '<div class="char-badge">SELECTED</div>' : ''}`;
         card.addEventListener('click', () => {
