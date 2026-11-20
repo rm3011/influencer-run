@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 const $ = (id) => document.getElementById(id);
 const S = {
     onPlay: null, onJogger: null, onRestart: null, onMenu: null,
-    onDashboard: null, onWorkoutFinish: null, onCharSelect: null
+    onDashboard: null, onDataScience: null, onWorkoutFinish: null, onCharSelect: null
 };
 
 const BEST_KEY = 'influencer-run-best';
@@ -50,6 +50,7 @@ export function initUI() {
     $('finish-workout-btn').addEventListener('click', () => S.onWorkoutFinish && S.onWorkoutFinish());
     $('char-btn').addEventListener('click', showCharacterModal);
     $('dashboard-btn').addEventListener('click', () => S.onDashboard && S.onDashboard());
+    $('data-science-btn').addEventListener('click', () => S.onDataScience && S.onDataScience());
     $('char-close-btn').addEventListener('click', () => hide($('char-modal')));
     $('stats-btn').addEventListener('click', showStats);
     $('stats-close-btn').addEventListener('click', () => hide($('stats-modal')));
@@ -114,6 +115,7 @@ function showStats() {
 
 export const onMenu = (cb) => { S.onMenu = cb; };
 export const onDashboard = (cb) => { S.onDashboard = cb; };
+export const onDataScience = (cb) => { S.onDataScience = cb; };
 export const onWorkoutFinish = (cb) => { S.onWorkoutFinish = cb; };
 export const onCharacterSelect = (cb) => { S.onCharSelect = cb; };
 
@@ -183,7 +185,7 @@ export function showGameOver(score, isNewHigh, { coins = 0, distance = 0, fitnes
 }
 
 export function hideAllOverlays() {
-    for (const id of ['start-screen', 'char-modal', 'stats-modal', 'fitness-dashboard', 'countdown', 'game-over']) hide($(id));
+    for (const id of ['start-screen', 'char-modal', 'stats-modal', 'fitness-dashboard', 'data-science-dashboard', 'countdown', 'game-over']) hide($(id));
 }
 
 function bump(el) {

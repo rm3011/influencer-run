@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@500;700;800&family=Noto+Sans+Tamil:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./css/style.css?v=2">
+    <link rel="stylesheet" href="./css/style.css?v=3">
     <script type="importmap">
     {
         "imports": {
@@ -92,6 +92,7 @@
             </p>
             <div class="btn-row">
                 <button id="dashboard-btn" class="btn-secondary">FITNESS DASHBOARD</button>
+                <button id="data-science-btn" class="btn-secondary">DATA SCIENCE</button>
                 <button id="stats-btn" class="btn-secondary">STATS</button>
                 <button id="char-btn" class="btn-secondary">CHARACTERS</button>
             </div>
@@ -126,7 +127,10 @@
         <div class="overlay-inner modal-inner glass-panel dashboard-inner">
             <div class="dashboard-title">
                 <div><p class="dashboard-kicker">CAMERA-BASED WORKOUTS</p><h2>FITNESS DASHBOARD</h2></div>
-                <button id="dashboard-close-btn" class="btn-secondary">CLOSE</button>
+                <div class="dashboard-actions">
+                    <button id="dashboard-data-science-btn" class="btn-secondary">DATA SCIENCE</button>
+                    <button id="dashboard-close-btn" class="btn-secondary">CLOSE</button>
+                </div>
             </div>
             <p class="dashboard-note">Camera-derived distance and calorie values are estimates. Webcam frames stay on this device.</p>
             <div class="dashboard-grid">
@@ -141,12 +145,69 @@
                 <label>Weekly distance goal (km)<input id="profile-goal" name="weekly_goal_km" type="number" min="0.1" max="500" step="0.1" required></label>
                 <button class="btn-primary profile-save" type="submit">SAVE PROFILE & GOAL</button>
             </form>
-            <div class="analytics-row">
-                <div class="analytics-card"><h3>MODEL FORECAST</h3><p id="dashboard-forecast">Complete more sessions to build a trend.</p></div>
-                <div class="analytics-card"><h3>CADENCE GROUP</h3><p id="dashboard-cluster">Available after three completed sessions.</p></div>
-            </div>
             <p id="dashboard-status" class="dashboard-status" role="status" aria-live="polite"></p>
             <div class="history-wrap"><h3>RECENT WORKOUTS</h3><div id="dashboard-history" class="dashboard-history"></div></div>
+        </div>
+    </div>
+
+    <!-- DATA SCIENCE -->
+    <div id="data-science-dashboard" class="overlay hidden">
+        <div class="overlay-inner modal-inner glass-panel science-inner">
+            <div class="dashboard-title">
+                <div><p class="dashboard-kicker">WORKOUT DATA ANALYSIS</p><h2>DATA SCIENCE</h2></div>
+                <div class="dashboard-actions">
+                    <button id="science-fitness-btn" class="btn-secondary">FITNESS</button>
+                    <button id="science-close-btn" class="btn-secondary">CLOSE</button>
+                </div>
+            </div>
+            <p class="dashboard-note">Exploratory analysis of completed camera workouts. These estimates are not medical or training advice.</p>
+            <div class="science-grid">
+                <article class="science-card science-forecast-card">
+                    <span class="science-kicker">LINEAR REGRESSION · NEXT WEEK</span>
+                    <strong id="science-forecast-value">--</strong>
+                    <p id="science-forecast-detail">Loading weekly distance trend…</p>
+                </article>
+                <article class="science-card science-sample-card">
+                    <span class="science-kicker">CADENCE DATA</span>
+                    <strong id="science-cadence-samples">--</strong>
+                    <p id="science-cadence-sample-note">Loading completed workout cadence…</p>
+                </article>
+            </div>
+            <section class="science-card cluster-card">
+                <div class="science-section-heading">
+                    <div><span class="science-kicker">K-MEANS CLUSTERING</span><h3>CADENCE GROUPS</h3></div>
+                    <span id="science-cluster-state" class="science-state">Loading…</span>
+                </div>
+                <div class="science-clusters" aria-label="Workout cadence groups">
+                    <div class="science-cluster-row">
+                        <span class="cluster-label">LOW <small id="science-low-center">-- spm</small></span>
+                        <span class="cluster-track"><i id="science-low-bar"></i></span>
+                        <strong id="science-low-count">0</strong>
+                    </div>
+                    <div class="science-cluster-row">
+                        <span class="cluster-label">STEADY <small id="science-steady-center">-- spm</small></span>
+                        <span class="cluster-track"><i id="science-steady-bar"></i></span>
+                        <strong id="science-steady-count">0</strong>
+                    </div>
+                    <div class="science-cluster-row">
+                        <span class="cluster-label">HIGH <small id="science-high-center">-- spm</small></span>
+                        <span class="cluster-track"><i id="science-high-bar"></i></span>
+                        <strong id="science-high-count">0</strong>
+                    </div>
+                </div>
+                <p id="science-cluster-detail" class="science-detail">Groups appear after enough completed workouts have cadence data.</p>
+            </section>
+            <section class="science-methods">
+                <article class="science-method">
+                    <h3>FORECAST METHOD</h3>
+                    <p>A straight-line regression summarizes weekly distance history and projects the next week. It requires workouts across at least three separate weeks.</p>
+                </article>
+                <article class="science-method">
+                    <h3>CLUSTER METHOD</h3>
+                    <p>K-means groups completed-session cadence into up to three descriptive bands. It needs at least three cadence samples.</p>
+                </article>
+            </section>
+            <p id="science-status" class="dashboard-status" role="status" aria-live="polite"></p>
         </div>
     </div>
 

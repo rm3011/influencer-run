@@ -9,7 +9,13 @@ async function request(path, options = {}) {
         throw new Error('Fitness service is unavailable. Start the FastAPI server and try again.');
     }
 
-    const body = await response.json();
+    let body;
+    try {
+        body = await response.json();
+    } catch {
+        if (!response.ok) throw new Error(`Fitness service request failed (${response.status}).`);
+        throw new Error('Fitness service returned an invalid response.');
+    }
     if (!response.ok) {
         const detail = typeof body.detail === 'string' ? body.detail : 'Fitness service request failed.';
         throw new Error(detail);

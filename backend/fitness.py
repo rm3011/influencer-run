@@ -57,6 +57,7 @@ def cadence_clusters(cadences: list[float]) -> dict[str, object]:
         return {
             "available": False,
             "method": "k_means",
+            "sample_count": len(values),
             "message": "Three completed sessions with detected cadence are needed.",
             "counts": {},
         }
@@ -94,6 +95,7 @@ def cadence_clusters(cadences: list[float]) -> dict[str, object]:
     return {
         "available": True,
         "method": "k_means",
+        "sample_count": len(values),
         "message": "Cadence groups learned from your completed camera sessions.",
         "counts": dict(counts),
         "centers_spm": {

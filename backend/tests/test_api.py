@@ -42,6 +42,7 @@ class FitnessApiTests(unittest.TestCase):
         dashboard = self.client.get("/api/dashboard").json()
         self.assertEqual(dashboard["week"]["completed_runs"], 1)
         self.assertEqual(dashboard["sessions"][0]["steps"], 100)
+        self.assertEqual(dashboard["analytics"]["cadence_clusters"]["sample_count"], 1)
 
     def test_profile_bounds_are_validated(self):
         response = self.client.put("/api/profile", json={"height_cm": 20})

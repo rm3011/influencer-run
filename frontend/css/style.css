@@ -304,7 +304,7 @@ canvas { display: block; touch-action: none; }
 }
 #start-screen .btn-row {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
     width: 100%;
     margin-top: 0;
@@ -374,14 +374,16 @@ canvas { display: block; touch-action: none; }
 .camera-panel p { margin-top: 5px; color: rgba(255,255,255,.58); font-size: 9px; line-height: 1.4; }
 
 /* ==================== FITNESS DASHBOARD ==================== */
-#fitness-dashboard { overflow-y: auto; padding: 18px; touch-action: pan-y; }
+#fitness-dashboard, #data-science-dashboard { overflow-y: auto; padding: 18px; touch-action: pan-y; }
 .dashboard-inner { width: min(900px, 100%); max-width: 900px; max-height: calc(100dvh - 36px); overflow-y: auto; align-items: stretch; text-align: left; gap: 14px; }
+.science-inner { width: min(900px, 100%); max-width: 900px; max-height: calc(100dvh - 36px); overflow-y: auto; align-items: stretch; text-align: left; gap: 14px; }
 .dashboard-title { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .dashboard-title h2 { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 36px; font-weight: 400; letter-spacing: 4px; }
+.dashboard-actions { display: flex; align-items: center; gap: 8px; }
 .dashboard-kicker { color: var(--teal); font-size: 10px; font-weight: 800; letter-spacing: 2px; }
 .dashboard-note { color: rgba(255,255,255,.7); font-size: 11px; line-height: 1.5; }
 .dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
-.dashboard-card, .analytics-card { padding: 12px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.16); border-radius: 12px; }
+.dashboard-card { padding: 12px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.16); border-radius: 12px; }
 .dashboard-card { display: flex; flex-direction: column; gap: 4px; }
 .dashboard-card span { color: var(--gold); font: 28px 'Bebas Neue', Impact, sans-serif; }
 .dashboard-card label { color: rgba(255,255,255,.62); font-size: 9px; font-weight: 800; letter-spacing: 1px; }
@@ -389,14 +391,38 @@ canvas { display: block; touch-action: none; }
 .profile-form label { display: flex; flex-direction: column; gap: 5px; color: rgba(255,255,255,.8); font-size: 10px; font-weight: 800; }
 .profile-form input { width: 100%; padding: 10px; color: #fff; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.25); border-radius: 8px; font: inherit; }
 .profile-save { grid-column: 1 / -1; justify-self: start; padding: 10px 18px; font-size: 12px; }
-.analytics-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-.analytics-card h3, .history-wrap h3 { margin-bottom: 6px; color: var(--teal); font-size: 10px; letter-spacing: 1px; }
-.analytics-card p, .dashboard-status { color: rgba(255,255,255,.75); font-size: 11px; line-height: 1.5; }
+.history-wrap h3 { margin-bottom: 6px; color: var(--teal); font-size: 10px; letter-spacing: 1px; }
+.dashboard-status { color: rgba(255,255,255,.75); font-size: 11px; line-height: 1.5; }
 .dashboard-status:empty { display: none; }
 .dashboard-status.error { color: #ff9a9a; }
 .dashboard-history { display: grid; gap: 6px; max-height: 135px; overflow-y: auto; }
 .history-row { display: flex; justify-content: space-between; gap: 8px; padding: 7px 9px; background: rgba(0,0,0,.22); border-radius: 8px; color: rgba(255,255,255,.8); font-size: 10px; }
 .history-empty { color: rgba(255,255,255,.58); font-size: 11px; }
+
+/* ==================== DATA SCIENCE DASHBOARD ==================== */
+.science-grid, .science-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.science-card, .science-method { padding: 16px; background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.16); border-radius: 14px; }
+.science-forecast-card { background: linear-gradient(135deg, rgba(255,210,61,.19), rgba(255,61,139,.13)); border-color: rgba(255,210,61,.38); }
+.science-kicker { display: block; color: var(--teal); font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+.science-card > strong { display: block; margin: 8px 0 4px; color: var(--gold); font: 40px/1 'Bebas Neue', Impact, sans-serif; }
+.science-sample-card > strong { color: #fff; }
+.science-card p, .science-method p { color: rgba(255,255,255,.72); font-size: 11px; line-height: 1.55; }
+.science-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.science-section-heading h3, .science-method h3 { margin-top: 4px; color: #fff; font-size: 13px; letter-spacing: 1px; }
+.science-state { padding: 5px 9px; border-radius: 999px; background: rgba(46,230,197,.14); color: var(--teal); font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+.science-clusters { display: grid; gap: 12px; }
+.science-cluster-row { display: grid; grid-template-columns: 115px minmax(0, 1fr) 32px; align-items: center; gap: 12px; }
+.cluster-label { display: flex; flex-direction: column; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.cluster-label small { color: rgba(255,255,255,.58); font-size: 9px; letter-spacing: 0; }
+.cluster-track { display: block; height: 12px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.1); }
+.cluster-track i { display: block; width: 0; height: 100%; border-radius: inherit; transition: width .3s ease; }
+#science-low-bar { background: linear-gradient(90deg, #39d8ff, #4b8cff); }
+#science-steady-bar { background: linear-gradient(90deg, #2ee6c5, #9bff87); }
+#science-high-bar { background: linear-gradient(90deg, #ffca54, #ff5e8a); }
+.science-cluster-row > strong { color: #fff; font: 20px 'Bebas Neue', Impact, sans-serif; text-align: right; }
+.science-detail { margin-top: 12px; }
+.science-method h3 { margin: 0 0 7px; color: var(--teal); font-size: 10px; }
+.science-method { background: rgba(255,255,255,.055); }
 
 /* ==================== CHARACTERS ==================== */
 .char-grid { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
@@ -452,15 +478,20 @@ canvas { display: block; touch-action: none; }
     .camera-metrics { font-size: 8px; }
     .camera-metrics b { font-size: 9px; }
     .camera-panel p { font-size: 8px; }
-    #fitness-dashboard { padding: 8px; }
+    #fitness-dashboard, #data-science-dashboard { padding: 8px; }
     .dashboard-inner { max-height: calc(100dvh - 16px); padding: 18px; gap: 10px; }
+    .science-inner { max-height: calc(100dvh - 16px); padding: 18px; gap: 10px; }
     .dashboard-title h2 { font-size: 27px; letter-spacing: 2px; }
+    .dashboard-title { flex-wrap: wrap; }
     .dashboard-title .btn-secondary { padding: 8px 12px; font-size: 10px; }
+    .dashboard-actions { gap: 5px; }
+    .science-grid, .science-methods { grid-template-columns: 1fr; }
+    .science-cluster-row { grid-template-columns: 90px minmax(0, 1fr) 24px; gap: 8px; }
+    .science-card, .science-method { padding: 12px; }
     .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .dashboard-card span { font-size: 24px; }
     .profile-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .profile-form label:last-of-type { grid-column: 1 / -1; }
-    .analytics-row { grid-template-columns: 1fr; }
 }
 
 @media (max-height: 740px) and (min-width: 701px) {

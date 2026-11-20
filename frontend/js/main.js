@@ -8,10 +8,10 @@ import { createCoinPool, spawnCoinTrail, laneHasCoins, resetCoins, updateCollect
 import { Input, attachKeyboard, attachTouch } from './input.js';
 import { startCV } from './cv-controller.js';
 import { startFitnessSession, updateFitnessSession, finishFitnessSession } from './fitness-api.js';
-import { initFitnessDashboard, showFitnessDashboard } from './fitness-dashboard.js';
+import { initFitnessDashboard, showFitnessDashboard, showDataScienceDashboard } from './fitness-dashboard.js';
 import {
     initUI, showStart, showCountdown, showGameOver, hideAllOverlays, onMenu, onCharacterSelect,
-    onDashboard, onWorkoutFinish, setWorkoutStatus, setScore, setCoins, setDistance, setBest, getBest, setModeStatus, setControlStatus,
+    onDashboard, onDataScience, onWorkoutFinish, setWorkoutStatus, setScore, setCoins, setDistance, setBest, getBest, setModeStatus, setControlStatus,
     setFitnessTelemetry, setFitnessEstimate, setFitnessServiceError, recordRun
 } from './menu.js';
 
@@ -24,6 +24,7 @@ const coins = createCoinPool(scene);
 initUI();
 initFitnessDashboard();
 onDashboard(showFitnessDashboard);
+onDataScience(showDataScienceDashboard);
 onWorkoutFinish(() => { void finishFitnessWorkout(); });
 
 const game = {

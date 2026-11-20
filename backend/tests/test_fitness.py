@@ -34,9 +34,12 @@ class FitnessModelTests(unittest.TestCase):
         self.assertEqual(result["method"], "linear_regression")
 
     def test_k_means_needs_three_cadence_samples(self):
-        self.assertFalse(cadence_clusters([90, 100])["available"])
+        insufficient = cadence_clusters([90, 100])
+        self.assertFalse(insufficient["available"])
+        self.assertEqual(insufficient["sample_count"], 2)
         result = cadence_clusters([80, 85, 140, 145, 180, 185])
         self.assertTrue(result["available"])
+        self.assertEqual(result["sample_count"], 6)
         self.assertEqual(set(result["counts"]), {"low", "steady", "high"})
 
 

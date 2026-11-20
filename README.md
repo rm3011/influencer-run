@@ -23,7 +23,7 @@ The fitness dashboard lets you save weight, height, and a weekly distance goal. 
 - The camera estimates steps from alternating ankle movement. Distance is estimated from steps and the saved height; calories are estimated from duration, detected cadence, and saved weight. These are not direct measurements and can be inaccurate, especially if body landmarks are occluded or the user is not running in place.
 - A workout continues while you restart the runner after a collision. Choose **Finish Workout** at game over, or return to the main menu, to save it.
 - The browser does not upload video or pose frames. Only step counts, cadence, and elapsed time are sent to the local API.
-- The dashboard uses linear regression for a weekly distance forecast (after workouts in three separate weeks) and K-means clustering for cadence groups (after three sessions). Predictions are unavailable until enough history exists; neither is medical advice.
+- The separate **Data Science** dashboard uses linear regression for a weekly distance forecast (after workouts in three separate weeks) and K-means clustering for cadence groups (after three sessions with cadence data). Predictions are unavailable until enough history exists; neither is medical advice.
 - This local demo has one shared profile and no account system. Set a distinct database path with `FITNESS_DB_PATH` when running tests or another instance.
 
 Keyboard mode remains a game-only mode and does not create fitness workout records.
