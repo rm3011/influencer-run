@@ -24,7 +24,7 @@ export const CONFIG = {
     game: {
         baseSpeed: 10, maxSpeed: 22, speedPerScore: 0.02,
         spawnGap: 22, poolSize: 16, spawnZ: -60, recycleZ: 8,
-        collideWindow: 0.6, scorePerObstacle: 10, coinScore: 5, kcalPerMeter: 0.045
+        collideWindow: 0.6, scorePerObstacle: 10, coinScore: 5
     },
     collectibles: { spawnIntervalMin: 1.2, spawnIntervalMax: 2.2 },
     

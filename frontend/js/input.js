@@ -3,7 +3,7 @@ export const Input = {
 
     push(action) {
         // De-dupe: don't push the same action twice in a row.
-        // CV fires at 15Hz; without this, a held lean would spam
+        // Pose detection runs continuously; without this, a held lean would spam
         // 'left' and slam the lane to the edge.
         const last = this._queue[this._queue.length - 1];
         if (last !== action) this._queue.push(action);

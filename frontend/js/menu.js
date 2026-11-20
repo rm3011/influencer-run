@@ -1,7 +1,10 @@
 import { CONFIG } from './config.js';
 
 const $ = (id) => document.getElementById(id);
-const S = { onPlay: null, onJogger: null, onRestart: null, onMenu: null, onCharSelect: null };
+const S = {
+    onPlay: null, onJogger: null, onRestart: null, onMenu: null,
+    onDashboard: null, onWorkoutFinish: null, onCharSelect: null
+};
 
 const BEST_KEY = 'influencer-run-best';
 const STATS_KEY = 'influencer-run-stats';
@@ -10,6 +13,7 @@ export const getBest = () => parseInt(localStorage.getItem(BEST_KEY) || '0', 10)
 export function setBest(v) {
     localStorage.setItem(BEST_KEY, String(v));
     $('best-value').textContent = String(v);
+    $('menu-best-score').textContent = v.toLocaleString();
 }
 
 export function getStats() {
@@ -21,19 +25,31 @@ export function recordRun({ coins, distance }) {
     const s = getStats();
     s.runs += 1; s.coins += coins; s.distance += distance;
     localStorage.setItem(STATS_KEY, JSON.stringify(s));
+    refreshMenuStats();
 }
 
 const show = (el) => el.classList.remove('hidden');
 const hide = (el) => el.classList.add('hidden');
 
+function refreshMenuStats() {
+    const stats = getStats();
+    $('menu-best-score').textContent = getBest().toLocaleString();
+    $('menu-total-runs').textContent = stats.runs.toLocaleString();
+    $('menu-total-coins').textContent = stats.coins.toLocaleString();
+    $('menu-total-distance').textContent = `${Math.round(stats.distance).toLocaleString()} m`;
+}
+
 export function initUI() {
     $('best-value').textContent = String(getBest());
+    refreshMenuStats();
     setCollectibleDisplay(CONFIG.currentCharacter);
 
     $('keyboard-btn').addEventListener('click', () => S.onPlay && S.onPlay());
     $('jogger-btn').addEventListener('click', () => S.onJogger && S.onJogger());
     $('restart-btn').addEventListener('click', () => S.onRestart && S.onRestart());
+    $('finish-workout-btn').addEventListener('click', () => S.onWorkoutFinish && S.onWorkoutFinish());
     $('char-btn').addEventListener('click', showCharacterModal);
+    $('dashboard-btn').addEventListener('click', () => S.onDashboard && S.onDashboard());
     $('char-close-btn').addEventListener('click', () => hide($('char-modal')));
     $('stats-btn').addEventListener('click', showStats);
     $('stats-close-btn').addEventListener('click', () => hide($('stats-modal')));
@@ -92,18 +108,20 @@ function showStats() {
     $('st-runs').textContent = s.runs;
     $('st-coins').textContent = s.coins;
     $('st-dist').textContent = Math.round(s.distance).toLocaleString() + ' m';
-    $('st-kcal').textContent = Math.round(s.distance * CONFIG.game.kcalPerMeter).toLocaleString();
     show($('stats-modal'));
     if (window.gsap) gsap.fromTo('#stats-modal .stat-box', { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.05, duration: 0.3 });
 }
 
 export const onMenu = (cb) => { S.onMenu = cb; };
+export const onDashboard = (cb) => { S.onDashboard = cb; };
+export const onWorkoutFinish = (cb) => { S.onWorkoutFinish = cb; };
 export const onCharacterSelect = (cb) => { S.onCharSelect = cb; };
 
 export function showStart(onPlay, onJogger, onRestart) {
     S.onPlay = onPlay;
     S.onJogger = onJogger;
     S.onRestart = onRestart;
+    refreshMenuStats();
     show($('start-screen'));
     hide($('game-over')); hide($('countdown')); hide($('hud'));
 }
@@ -149,11 +167,14 @@ export function showCountdown(from, onDone) {
     })();
 }
 
-export function showGameOver(score, isNewHigh, { coins = 0, distance = 0 } = {}) {
+export function showGameOver(score, isNewHigh, { coins = 0, distance = 0, fitnessActive = false } = {}) {
     $('final-score-value').textContent = String(score);
     $('go-coins').textContent = String(coins);
     $('go-dist').textContent = Math.round(distance) + ' m';
-    $('go-kcal').textContent = String(Math.round(distance * CONFIG.game.kcalPerMeter));
+    $('finish-workout-btn').classList.toggle('hidden', !fitnessActive);
+    $('workout-status').textContent = fitnessActive
+        ? 'Workout tracking continues. Finish it here or return to the main menu to save.'
+        : '';
     isNewHigh ? show($('new-high')) : hide($('new-high'));
     show($('game-over'));
     if (window.gsap) {
@@ -162,7 +183,7 @@ export function showGameOver(score, isNewHigh, { coins = 0, distance = 0 } = {})
 }
 
 export function hideAllOverlays() {
-    for (const id of ['start-screen', 'char-modal', 'stats-modal', 'countdown', 'game-over']) hide($(id));
+    for (const id of ['start-screen', 'char-modal', 'stats-modal', 'fitness-dashboard', 'countdown', 'game-over']) hide($(id));
 }
 
 function bump(el) {
@@ -184,5 +205,30 @@ export function setCoins(v, animate) {
 }
 export function setDistance(m) {
     $('dist-value').textContent = String(Math.floor(m));
-    $('kcal-value').textContent = String(Math.floor(m * CONFIG.game.kcalPerMeter));
+}
+
+export function setFitnessTelemetry({ steps, cadence }) {
+    $('fitness-steps').textContent = String(steps);
+    $('fitness-cadence').textContent = cadence > 0 ? String(cadence) : '--';
+}
+
+export function setFitnessEstimate(metrics) {
+    const estimate = $('fitness-estimate');
+    estimate.classList.remove('error');
+    if (metrics.requires_profile || metrics.estimated_distance_m == null) {
+        estimate.textContent = 'Add height and weight in the fitness dashboard to calculate estimates.';
+        return;
+    }
+    estimate.textContent = `Backend estimate · ~${(metrics.estimated_distance_m / 1000).toFixed(2)} km · ~${Math.round(metrics.estimated_calories_kcal)} kcal`;
+}
+
+export function setFitnessServiceError(message) {
+    const estimate = $('fitness-estimate');
+    estimate.textContent = `Fitness service error: ${message}`;
+    estimate.classList.add('error');
+}
+
+export function setWorkoutStatus(message) {
+    $('workout-status').textContent = message;
+    $('finish-workout-btn').classList.add('hidden');
 }

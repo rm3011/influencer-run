@@ -1,0 +1,5 @@
+backend/fitness.sqlite3
+backend/fitness.sqlite3-shm
+backend/fitness.sqlite3-wal
+__pycache__/
+*.py[cod]

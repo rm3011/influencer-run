@@ -7,9 +7,12 @@ import { createCoinPool, spawnCoinTrail, laneHasCoins, resetCoins, updateCollect
          checkCoinCollision, getCoinPoints, setCollectibleCharacter } from './collectibles.js';
 import { Input, attachKeyboard, attachTouch } from './input.js';
 import { startCV } from './cv-controller.js';
+import { startFitnessSession, updateFitnessSession, finishFitnessSession } from './fitness-api.js';
+import { initFitnessDashboard, showFitnessDashboard } from './fitness-dashboard.js';
 import {
     initUI, showStart, showCountdown, showGameOver, hideAllOverlays, onMenu, onCharacterSelect,
-    setScore, setCoins, setDistance, setBest, getBest, setModeStatus, setControlStatus, recordRun
+    onDashboard, onWorkoutFinish, setWorkoutStatus, setScore, setCoins, setDistance, setBest, getBest, setModeStatus, setControlStatus,
+    setFitnessTelemetry, setFitnessEstimate, setFitnessServiceError, recordRun
 } from './menu.js';
 
 const env = createEnvironment();
@@ -19,6 +22,9 @@ const obstacles = createObstaclePool(scene);
 const coins = createCoinPool(scene);
 
 initUI();
+initFitnessDashboard();
+onDashboard(showFitnessDashboard);
+onWorkoutFinish(() => { void finishFitnessWorkout(); });
 
 const game = {
     state: 'menu',            // menu | countdown | playing | gameover
@@ -49,7 +55,110 @@ function tweenCamera(pose, duration) {
 let cvHandle = null;
 let cvReady = false;
 let joggerStartPending = false;
+let cvRequestId = 0;
 let controlStatusTimer = null;
+let fitnessSessionId = null;
+let fitnessStartPending = false;
+let fitnessProgressTimer = null;
+let fitnessProgressRequest = null;
+let sessionStepBaseline = 0;
+let fitnessStartedAt = 0;
+let currentMotion = { steps: 0, cadence: 0 };
+
+function stopCameraTracking() {
+    cvRequestId++;
+    joggerStartPending = false;
+    cvHandle?.stop();
+    cvHandle = null;
+    cvReady = false;
+}
+
+function sessionSample() {
+    return {
+        elapsed_seconds: fitnessStartedAt ? Math.floor((performance.now() - fitnessStartedAt) / 1000) : 0,
+        steps: Math.max(0, currentMotion.steps - sessionStepBaseline),
+        cadence_spm: currentMotion.cadence
+    };
+}
+
+async function sendFitnessProgress() {
+    if (!fitnessSessionId || !['playing', 'gameover'].includes(game.state) || fitnessProgressRequest) return;
+    const sessionId = fitnessSessionId;
+    fitnessProgressRequest = updateFitnessSession(sessionId, sessionSample());
+    try {
+        const metrics = await fitnessProgressRequest;
+        if (fitnessSessionId === sessionId) setFitnessEstimate(metrics);
+    } catch (error) {
+        setFitnessServiceError(error.message);
+    } finally {
+        fitnessProgressRequest = null;
+    }
+}
+
+async function finishFitnessWorkout() {
+    if (!fitnessSessionId) {
+        stopCameraTracking();
+        return;
+    }
+    const sessionId = fitnessSessionId;
+    const sample = sessionSample();
+    fitnessSessionId = null;
+    clearInterval(fitnessProgressTimer);
+    fitnessProgressTimer = null;
+    stopCameraTracking();
+    if (fitnessProgressRequest) {
+        try {
+            await fitnessProgressRequest;
+        } catch (error) {
+            setFitnessServiceError(error.message);
+        }
+    }
+    try {
+        const metrics = await finishFitnessSession(sessionId, sample);
+        setFitnessEstimate(metrics);
+        const distance = metrics.estimated_distance_m == null
+            ? 'metrics unavailable'
+            : `~${(metrics.estimated_distance_m / 1000).toFixed(2)} km, ~${Math.round(metrics.estimated_calories_kcal)} kcal`;
+        setWorkoutStatus(`Workout saved: ${sample.steps} camera-detected steps; ${distance}.`);
+    } catch (error) {
+        setFitnessServiceError(error.message);
+        setWorkoutStatus(`Could not save workout: ${error.message}`);
+    }
+}
+
+async function startCameraWorkout(requestId = cvRequestId) {
+    if (requestId !== cvRequestId || !cvReady || fitnessStartPending) return;
+    if (fitnessSessionId) {
+        beginGame();
+        return;
+    }
+    fitnessStartPending = true;
+    setModeStatus('Starting your camera-controlled run locally…', true);
+    beginGame();
+    try {
+        const session = await startFitnessSession();
+        if (requestId !== cvRequestId || game.controlMode !== 'jogger') {
+            await finishFitnessSession(session.session_id, {
+                elapsed_seconds: 0,
+                steps: 0,
+                cadence_spm: 0
+            });
+            return;
+        }
+        fitnessSessionId = session.session_id;
+        fitnessStartedAt = performance.now();
+        sessionStepBaseline = currentMotion.steps;
+        setModeStatus('Camera run active. Saving workout data…', true);
+        clearInterval(fitnessProgressTimer);
+        fitnessProgressTimer = setInterval(() => { void sendFitnessProgress(); }, 2000);
+    } catch (error) {
+        if (requestId !== cvRequestId) return;
+        setModeStatus(`Camera run is local; workout data was not saved: ${error.message}`, false, true);
+        setControlStatus(`Camera controls are active locally. Workout data was not saved: ${error.message}`, true);
+    } finally {
+        fitnessStartPending = false;
+    }
+}
 
 // ---------------- scoring ----------------
 function addScore(n) {
@@ -92,6 +201,12 @@ function beginGame() {
     tweenCamera(CONFIG.camera.game, 1.3);
     hideAllOverlays();
     showCountdown(3, () => {
+        if (game.controlMode === 'jogger') {
+            setFitnessTelemetry({
+                steps: Math.max(0, currentMotion.steps - sessionStepBaseline),
+                cadence: currentMotion.cadence
+            });
+        }
         game.state = 'playing';
         player.setPose('run');
     });
@@ -99,70 +214,88 @@ function beginGame() {
 
 function startKeyboardGame() {
     game.controlMode = 'keyboard';
-    cvReady = false;
-    if (cvHandle) {
-        cvHandle.stop();
-        cvHandle = null;
-    }
+    stopCameraTracking();
     setModeStatus('Keyboard controls selected.', false);
     setControlStatus('Keyboard controls: arrows or WASD.');
     beginGame();
 }
 
 async function startJoggerGame() {
+    if (joggerStartPending || fitnessStartPending) return;
     game.controlMode = 'jogger';
     if (cvReady) {
-        setModeStatus('Real-time jogger controls ready.', false);
-        setControlStatus('Jogger controls active: lean, raise head to jump, lower to roll.');
-        beginGame();
+        void startCameraWorkout(cvRequestId);
+        setControlStatus('Move your head: lean left/right to steer, raise to jump, lower to roll.');
         return;
     }
 
-    if (cvHandle) {
-        cvHandle.stop();
-        cvHandle = null;
-    }
+    stopCameraTracking();
+    const requestId = cvRequestId;
     joggerStartPending = true;
     setModeStatus('Starting camera. Allow access, face the screen, and stand still to calibrate.', true);
     try {
-        cvHandle = await startCV(
+        const handle = await startCV(
             (action) => {
-                if (game.controlMode !== 'jogger') return;
+                if (requestId !== cvRequestId || game.controlMode !== 'jogger') return;
                 Input.push(action);
                 const labels = { left: 'left', right: 'right', jump: 'jump', roll: 'roll' };
                 setControlStatus(`Jogger detected: ${labels[action]}.`);
                 clearTimeout(controlStatusTimer);
                 controlStatusTimer = setTimeout(() => {
                     if (game.controlMode === 'jogger') {
-                        setControlStatus('Jogger controls active: lean, raise head to jump, lower to roll.');
+                        setControlStatus('Move your head: lean left/right to steer, raise to jump, lower to roll.');
                     }
                 }, 900);
             },
-            (status) => {
+            (status, message) => {
+                if (requestId !== cvRequestId) return;
                 if (status === 'loading') {
-                    setModeStatus('Loading real-time pose tracking...', true);
+                    setModeStatus('Loading real-time head tracking...', true);
                 } else if (status === 'calibrating') {
+                    document.getElementById('camera-indicator').style.color = '#ffd23d';
                     setModeStatus('Camera ready. Stand centered and look at the screen to calibrate.', true);
                     setControlStatus('Camera connected. Stand centered to calibrate.');
                 } else if (status === 'finding') {
+                    document.getElementById('camera-indicator').style.color = '#ff6c7d';
                     setControlStatus('Face not visible. Face the camera; jogger controls are paused.', true);
                     if (!cvReady) setModeStatus('Looking for your face. Face the camera and move into view.', false);
+                } else if (status === 'cpu-fallback') {
+                    setControlStatus('Head tracking is using the CPU; tracking speed may be lower.');
+                } else if (status === 'fitness-cpu-fallback') {
+                    setControlStatus('Head controls are active. CPU fallback is being used for step tracking.');
+                } else if (status === 'fitness-unavailable') {
+                    setControlStatus(`Head controls are active, but step tracking is unavailable: ${message}`, true);
                 } else if (status === 'tracking') {
-                    setControlStatus('Jogger controls active: lean, raise head to jump, lower to roll.');
+                    document.getElementById('camera-indicator').style.color = '#2ee6c5';
+                    setControlStatus('Move your head: lean left/right to steer, raise to jump, lower to roll.');
                 } else if (status === 'ready') {
+                    document.getElementById('camera-indicator').style.color = '#2ee6c5';
                     cvReady = true;
-                    setModeStatus('Jogger controls ready. Starting your run...', false);
-                    setControlStatus('Jogger controls active: lean, raise head to jump, lower to roll.');
-                    if (joggerStartPending) beginGame();
+                    setModeStatus('Head tracking ready. Starting local camera controls…', true);
+                    setControlStatus('Move your head: lean left/right to steer, raise to jump, lower to roll.');
+                    if (joggerStartPending) void startCameraWorkout(requestId);
                 } else if (status === 'error') {
+                    document.getElementById('camera-indicator').style.color = '#ff6c7d';
                     cvReady = false;
                     joggerStartPending = false;
+                    if (fitnessSessionId) void finishFitnessWorkout();
                     setModeStatus('Camera tracking stopped. Choose a control mode to try again.', false, true);
                     setControlStatus('Camera tracking stopped. Choose keyboard or retry jogger mode.', true);
                 }
+            },
+            (motion) => {
+                if (requestId !== cvRequestId) return;
+                currentMotion = motion;
+                const cameraRate = motion.cameraFps ? `CAM ${motion.cameraFps}` : 'CAM --';
+                document.getElementById('camera-fps').textContent = `${cameraRate} / HEAD ${motion.fps} FPS`;
+                const steps = fitnessSessionId ? Math.max(0, motion.steps - sessionStepBaseline) : motion.steps;
+                setFitnessTelemetry({ steps, cadence: motion.cadence });
             }
         );
+        if (requestId !== cvRequestId) handle.stop();
+        else cvHandle = handle;
     } catch (err) {
+        if (requestId !== cvRequestId) return;
         joggerStartPending = false;
         cvReady = false;
         console.error('CV failed:', err);
@@ -184,12 +317,17 @@ function triggerGameOver() {
     recordRun({ coins: game.coins, distance: game.distance });
 
     setTimeout(() => {
-        showGameOver(game.score, isNewHigh, { coins: game.coins, distance: game.distance });
+        showGameOver(game.score, isNewHigh, {
+            coins: game.coins,
+            distance: game.distance,
+            fitnessActive: Boolean(fitnessSessionId)
+        });
         game.canRestart = true;
     }, 750);
 }
 
 onMenu(() => {
+    void finishFitnessWorkout();
     game.state = 'menu';
     game.canRestart = false;
     player.reset();
